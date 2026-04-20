@@ -1,30 +1,82 @@
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.responses import FileResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import secrets
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 import json
-from db import load_history
+import os
+import asyncio
+from typing import List
 
 app = FastAPI()
-security = HTTPBasic()
 
-USER = "admin"
-PASS = "intel123"
+# CORS (allow your deployed frontend)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def auth(c: HTTPBasicCredentials = Depends(security)):
-    if not (secrets.compare_digest(c.username, USER) and secrets.compare_digest(c.password, PASS)):
-        raise HTTPException(status_code=401)
-    return c.username
+DB_FILE = "intel_data.json"
 
-@app.get("/")
-def home():
-    return FileResponse("intel_map.html")
+# --- WebSocket manager ---
+class ConnectionManager:
+    def __init__(self):
+        self.active: List[WebSocket] = []
 
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        if ws in self.active:
+            self.active.remove(ws)
+
+    async def broadcast(self, data):
+        dead = []
+        for ws in self.active:
+            try:
+                await ws.send_json(data)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws)
+
+manager = ConnectionManager()
+
+# --- REST endpoint (kept for fallback) ---
 @app.get("/events")
-def events(user: str = Depends(auth)):
-    with open("intel_data.json") as f:
+def get_events():
+    if not os.path.exists(DB_FILE):
+        return []
+    with open(DB_FILE, "r") as f:
         return json.load(f)
 
-@app.get("/history")
-def history(user: str = Depends(auth)):
-    return load_history()
+# --- WebSocket endpoint ---
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await manager.connect(ws)
+    try:
+        while True:
+            # keep connection alive; client doesn't need to send anything
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(ws)
+
+# --- Background loop: push updates every few seconds ---
+async def push_loop():
+    last_hash = None
+    while True:
+        await asyncio.sleep(3)
+        if not os.path.exists(DB_FILE):
+            continue
+        with open(DB_FILE, "r") as f:
+            data = json.load(f)
+        # simple change detection
+        cur_hash = hash(json.dumps(data))
+        if cur_hash != last_hash:
+            last_hash = cur_hash
+            await manager.broadcast(data)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(push_loop())

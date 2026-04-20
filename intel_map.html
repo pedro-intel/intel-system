@@ -49,7 +49,9 @@
 </div>
 
 <script>
-    const API_URL = "https://intel-system.onrender.com/events"; // 🔥 CHANGE THIS
+    // 🔥 CORRECT ENDPOINTS
+    const API_HTTP = "https://intel-system.onrender.com/events";
+    const API_WS   = "wss://intel-system.onrender.com/ws";
 
     const map = L.map('map').setView([20, 0], 2);
 
@@ -64,38 +66,75 @@
         return "blue";
     }
 
-    async function loadEvents() {
+    function render(data) {
+        // Clear old markers
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+
+        const container = document.getElementById("events");
+        container.innerHTML = "";
+
+        data.forEach(event => {
+            const marker = L.circleMarker([event.lat, event.lon], {
+                radius: 8,
+                color: getColor(event.threat)
+            }).addTo(map);
+
+            markers.push(marker);
+
+            const div = document.createElement("div");
+            div.className = "event " + event.threat;
+            div.innerHTML = `<b>${event.title}</b>`;
+            container.appendChild(div);
+
+            // 🚨 Alert for critical
+            if (event.threat === "CRITICAL") {
+                console.log("🚨 CRITICAL:", event.title);
+            }
+        });
+    }
+
+    // ✅ Initial fallback load
+    async function initialLoad() {
         try {
-            const response = await fetch(API_URL);
-            const data = await response.json();
-
-            markers.forEach(m => map.removeLayer(m));
-            markers = [];
-
-            const container = document.getElementById("events");
-            container.innerHTML = "";
-
-            data.forEach(event => {
-                const marker = L.circleMarker([event.lat, event.lon], {
-                    radius: 8,
-                    color: getColor(event.threat)
-                }).addTo(map);
-
-                markers.push(marker);
-
-                const div = document.createElement("div");
-                div.className = "event " + event.threat;
-                div.innerHTML = `<b>${event.title}</b>`;
-                container.appendChild(div);
-            });
-
-        } catch (err) {
-            console.error("Error loading events:", err);
+            const res = await fetch(API_HTTP);
+            const data = await res.json();
+            render(data);
+        } catch (e) {
+            console.error("Initial load failed:", e);
         }
     }
 
-    loadEvents();
-    setInterval(loadEvents, 10000);
+    // 🚀 REAL-TIME WebSocket
+    function startWS() {
+        const ws = new WebSocket(API_WS);
+
+        ws.onopen = () => {
+            console.log("✅ WebSocket connected");
+        };
+
+        ws.onmessage = (msg) => {
+            try {
+                const data = JSON.parse(msg.data);
+                render(data);
+            } catch (e) {
+                console.error("WS parse error:", e);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("⚠️ WS closed — reconnecting...");
+            setTimeout(startWS, 3000);
+        };
+
+        ws.onerror = (err) => {
+            console.error("❌ WS error:", err);
+        };
+    }
+
+    // 🚀 Start system
+    initialLoad();
+    startWS();
 </script>
 
 </body>
