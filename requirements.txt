@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+requests
+spacy
+geopy
+feedparser
+scikit-learn
+pandas
+joblib
