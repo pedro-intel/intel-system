@@ -1,32 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI INTEL SYSTEM (ADVANCED)</title>
-
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIVE INTEL DASHBOARD</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
     <style>
-        body { margin:0; display:flex; background:#0b1a2a; color:white; font-family:Arial; }
-        #map { width:70%; height:100vh; }
-        #sidebar { width:30%; background:#0f2438; padding:10px; overflow-y:auto; }
-
-        .event { padding:8px; margin:5px 0; border-left:4px solid gray; cursor:pointer; }
-        .CRITICAL { border-color:red; }
-        .HIGH { border-color:orange; }
-        .MEDIUM { border-color:yellow; }
-
-        #prediction, #timeline, #regions {
-            background:#152d47;
-            padding:10px;
-            margin-bottom:10px;
+        body {
+            margin: 0;
+            display: flex;
+            font-family: Arial;
+            background: #0b1a2a;
+            color: white;
         }
 
-        input[type=range] { width:100%; }
+        #map {
+            height: 100vh;
+            width: 75%;
+        }
+
+        #sidebar {
+            width: 25%;
+            background: #0f2438;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .event {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #132f4c;
+        }
+
+        .CRITICAL { border-left: 5px solid red; }
+        .HIGH { border-left: 5px solid orange; }
+        .MEDIUM { border-left: 5px solid yellow; }
     </style>
 </head>
 
@@ -35,149 +44,58 @@
 <div id="map"></div>
 
 <div id="sidebar">
-
-    <div id="prediction">
-        <h3>🔮 PREDICTED HOTSPOT</h3>
-        <div id="predictionBox"></div>
-    </div>
-
-    <div id="regions">
-        <h3>🌍 REGION ALERTS</h3>
-        <div id="regionBox"></div>
-    </div>
-
-    <div id="timeline">
-        <h3>⏳ TIMELINE</h3>
-        <input type="range" id="timeSlider" min="0" max="0" value="0">
-    </div>
-
-    <h3>INTEL FEED</h3>
+    <h2>LIVE INTEL</h2>
     <div id="events"></div>
-
 </div>
 
 <script>
-const map = L.map('map').setView([20,0],2);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    const API_URL = "https://intel-system.onrender.com/events"; // 🔥 CHANGE THIS
 
-let markers = [];
-let allEvents = [];
+    const map = L.map('map').setView([20, 0], 2);
 
-function getColor(t){
-    return t==="CRITICAL"?"red":t==="HIGH"?"orange":"yellow";
-}
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-function clusterKey(e){
-    return `${Math.round(e.lat)}_${Math.round(e.lon)}`;
-}
+    let markers = [];
 
-function detectClusters(data){
-    let clusters={};
-    data.forEach(e=>{
-        let k=clusterKey(e);
-        if(!clusters[k]) clusters[k]=[];
-        clusters[k].push(e);
-    });
-    return Object.values(clusters);
-}
-
-function updatePrediction(data){
-    let clusters = detectClusters(data);
-
-    let scored = clusters.map(c=>{
-        let score = c.length;
-        if(c.some(e=>e.threat==="CRITICAL")) score+=2;
-        return {cluster:c, score};
-    });
-
-    scored.sort((a,b)=>b.score-a.score);
-
-    let best = scored[0];
-    let box = document.getElementById("predictionBox");
-
-    if(best){
-        let e = best.cluster[0];
-        box.innerHTML = `
-            🔥 Likely escalation near (${e.lat.toFixed(1)}, ${e.lon.toFixed(1)})
-            <br>Events: ${best.cluster.length}
-        `;
-
-        // highlight on map
-        L.circle([e.lat,e.lon], {
-            radius:300000,
-            color:"purple",
-            fillOpacity:0.1
-        }).addTo(map);
+    function getColor(threat) {
+        if (threat === "CRITICAL") return "red";
+        if (threat === "HIGH") return "orange";
+        if (threat === "MEDIUM") return "yellow";
+        return "blue";
     }
-}
 
-function updateRegions(data){
-    let clusters = detectClusters(data);
-    let box = document.getElementById("regionBox");
-    box.innerHTML = "";
+    async function loadEvents() {
+        try {
+            const response = await fetch(API_URL);
+            const data = await response.json();
 
-    clusters.forEach(c=>{
-        if(c.length >= 3){
-            let e=c[0];
-            box.innerHTML += `
-                ⚠️ ${c.length} events near (${e.lat.toFixed(1)}, ${e.lon.toFixed(1)})<br>
-            `;
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            const container = document.getElementById("events");
+            container.innerHTML = "";
+
+            data.forEach(event => {
+                const marker = L.circleMarker([event.lat, event.lon], {
+                    radius: 8,
+                    color: getColor(event.threat)
+                }).addTo(map);
+
+                markers.push(marker);
+
+                const div = document.createElement("div");
+                div.className = "event " + event.threat;
+                div.innerHTML = `<b>${event.title}</b>`;
+                container.appendChild(div);
+            });
+
+        } catch (err) {
+            console.error("Error loading events:", err);
         }
-    });
-}
+    }
 
-function render(data){
-    markers.forEach(m=>map.removeLayer(m));
-    markers=[];
-
-    let list=document.getElementById("events");
-    list.innerHTML="";
-
-    data.forEach(e=>{
-        let m=L.circleMarker([e.lat,e.lon],{
-            color:getColor(e.threat),
-            radius:6
-        }).addTo(map);
-
-        m.bindPopup(`<b>${e.title}</b><br>${e.summary}`);
-
-        markers.push(m);
-
-        let div=document.createElement("div");
-        div.className="event "+e.threat;
-        div.innerHTML=`<b>${e.title}</b>`;
-
-        div.onclick=()=>{
-            map.setView([e.lat,e.lon],5);
-            m.openPopup();
-        };
-
-        list.appendChild(div);
-    });
-}
-
-async function loadEvents(){
-    let res=await fetch("/events");
-    let data=await res.json();
-
-    allEvents = data;
-
-    document.getElementById("timeSlider").max = data.length;
-
-    render(data);
-    updatePrediction(data);
-    updateRegions(data);
-}
-
-// ⏳ timeline replay
-document.getElementById("timeSlider").addEventListener("input", (e)=>{
-    let val = parseInt(e.target.value);
-    let subset = allEvents.slice(0, val);
-    render(subset);
-});
-
-loadEvents();
-setInterval(loadEvents,10000);
+    loadEvents();
+    setInterval(loadEvents, 10000);
 </script>
 
 </body>
