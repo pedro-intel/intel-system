@@ -3,7 +3,6 @@
 <head>
     <title>Intel Map</title>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
@@ -20,9 +19,6 @@
             padding: 10px;
             font-size: 12px;
             z-index: 9999;
-            max-width: 300px;
-            overflow-y: auto;
-            max-height: 200px;
         }
     </style>
 </head>
@@ -35,70 +31,62 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-    const logBox = document.getElementById("status");
-
-    function log(msg) {
-        console.log(msg);
-        logBox.innerHTML += "<br>" + msg;
-    }
-
-    // Map
     const map = L.map('map').setView([20, 0], 2);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    let ws;
+    const status = document.getElementById("status");
 
-    function connectWS() {
-        const protocol = (location.protocol === "https:") ? "wss://" : "ws://";
-        const url = protocol + location.host + "/ws";
-
-        log("Connecting to: " + url);
-
-        ws = new WebSocket(url);
-
-        ws.onopen = () => {
-            log("✅ WS CONNECTED");
-
-            // keep alive
-            setInterval(() => {
-                ws.send("keepalive");
-            }, 30000);
-        };
-
-        ws.onclose = () => {
-            log("❌ WS CLOSED — reconnecting...");
-            setTimeout(connectWS, 2000);
-        };
-
-        ws.onerror = (err) => {
-            log("⚠️ WS ERROR");
-        };
-
-        ws.onmessage = (event) => {
-            log("📩 RAW: " + event.data);
-
-            try {
-                const data = JSON.parse(event.data);
-
-                if (data.lat && data.lng) {
-                    log("📍 Adding marker");
-
-                    L.marker([data.lat, data.lng])
-                        .addTo(map)
-                        .bindPopup(data.message || "Event")
-                        .openPopup();
-                }
-
-            } catch (e) {
-                log("Ignored (not JSON)");
-            }
-        };
+    function log(msg) {
+        console.log(msg);
+        status.innerHTML = msg;
     }
 
-    connectWS();
+    function addMarker(data) {
+        console.log("ADDING:", data);
+
+        if (!data.lat || !data.lng) return;
+
+        const color =
+            data.type === "critical" ? "red" :
+            data.type === "warning" ? "orange" :
+            "blue";
+
+        L.circleMarker([data.lat, data.lng], {
+            color: color,
+            radius: 8
+        }).addTo(map)
+          .bindPopup(data.message || "Event");
+    }
+
+    // 🔥 LOAD HISTORY
+    fetch("/history")
+        .then(res => res.json())
+        .then(data => {
+            log("Loaded history: " + data.length);
+            data.forEach(addMarker);
+        });
+
+    // 🔥 WEBSOCKET
+    const protocol = location.protocol === "https:" ? "wss://" : "ws://";
+    const ws = new WebSocket(protocol + location.host + "/ws");
+
+    ws.onopen = () => log("WS CONNECTED");
+
+    ws.onmessage = (event) => {
+        console.log("RAW:", event.data);
+
+        try {
+            const data = JSON.parse(event.data);
+            addMarker(data);
+        } catch (e) {
+            console.error("Bad JSON:", event.data);
+        }
+    };
+
+    ws.onclose = () => log("WS CLOSED");
 </script>
 
 </body>

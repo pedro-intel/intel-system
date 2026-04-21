@@ -1,61 +1,74 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 import json
 import asyncio
+
+# 🔥 import the news system
+from news_ingest import fetch_news
 
 app = FastAPI()
 
 clients = []
+events = []
 
 
-# Serve frontend
+# 🌍 serve frontend
 @app.get("/")
 async def root():
     return FileResponse("intel_map.html")
 
 
-# ✅ FIXED WebSocket (non-blocking, stable)
+# 📜 history endpoint
+@app.get("/history")
+async def history():
+    return events
+
+
+# 🔌 websocket
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    print("🔥 WS ROUTE HIT")
-
     await websocket.accept()
     clients.append(websocket)
 
-    print(f"✅ CONNECTED | clients: {len(clients)}")
-
     try:
         while True:
-            await asyncio.sleep(1)  # 👈 KEY FIX (keeps loop alive without blocking)
-
+            await websocket.receive_text()  # keep connection alive
     except WebSocketDisconnect:
-        print("❌ DISCONNECTED")
-
+        pass
     finally:
         if websocket in clients:
             clients.remove(websocket)
-        print(f"👋 Client removed | clients: {len(clients)}")
 
 
-# ✅ Broadcast endpoint
+# 📡 manual event endpoint (curl still works)
 @app.post("/events")
 async def receive_event(request: Request):
     data = await request.json()
-    print("📡 EVENT:", data)
 
-    dead = []
+    if "lat" not in data or "lng" not in data:
+        return {"error": "Missing lat/lng"}
+
+    if "type" not in data:
+        data["type"] = "info"
+
+    events.append(data)
+
+    dead_clients = []
 
     for client in clients:
         try:
             await client.send_text(json.dumps(data))
-        except Exception as e:
-            print("⚠️ Failed:", e)
-            dead.append(client)
+        except:
+            dead_clients.append(client)
 
-    for d in dead:
-        if d in clients:
-            clients.remove(d)
+    for dc in dead_clients:
+        if dc in clients:
+            clients.remove(dc)
 
-    print(f"📤 Sent to {len(clients)} clients")
+    return {"status": "sent"}
 
-    return {"status": "sent", "clients": len(clients)}
+
+# 🚀 AUTO NEWS STARTS HERE
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(fetch_news(events, clients))
