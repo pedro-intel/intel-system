@@ -1,108 +1,22 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
 import json
-import os
-import asyncio
-from typing import List
 
-app = FastAPI()
+@app.post("/events")
+async def receive_event(request: Request):
+    data = await request.json()
+    print("Event:", data)
 
-# 🔓 Allow frontend to connect
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    for client in clients:
+        await client.send_text(json.dumps(data))
 
-DATA_FILE = "intel_data.json"
+    return {"status": "sent"}
 
-# =========================
-# 📄 SERVE FRONTEND
-# =========================
-@app.get("/")
-def home():
-    return FileResponse("intel_map.html")
-
-
-# =========================
-# 📊 EVENTS API
-# =========================
-@app.get("/events")
-def get_events():
-    if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
-
-
-# =========================
-# 🔌 WEBSOCKET MANAGER
-# =========================
-class ConnectionManager:
-    def __init__(self):
-        self.active: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active:
-            self.active.remove(websocket)
-
-    async def broadcast(self, data):
-        dead = []
-        for ws in self.active:
-            try:
-                await ws.send_json(data)
-            except:
-                dead.append(ws)
-        for ws in dead:
-            self.disconnect(ws)
-
-
-manager = ConnectionManager()
-
-
-# =========================
-# 🔌 WEBSOCKET ROUTE
-# =========================
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
+    print("🔥 WS ROUTE HIT")
 
-
-# =========================
-# 🔄 BACKGROUND PUSH LOOP
-# =========================
-async def push_updates():
-    last_data = None
+    await websocket.accept()
+    print("✅ WS CONNECTED")
 
     while True:
-        await asyncio.sleep(3)
-
-        if not os.path.exists(DATA_FILE):
-            continue
-
-        with open(DATA_FILE, "r") as f:
-            data = json.load(f)
-
-        if data != last_data:
-            last_data = data
-            await manager.broadcast(data)
-
-
-# =========================
-# 🚀 STARTUP EVENT
-# =========================
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(push_updates())
+        await websocket.send_text("ping")
