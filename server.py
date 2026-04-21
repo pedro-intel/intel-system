@@ -1,30 +1,45 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse, JSONResponse
-import json
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 import asyncio
+import json
+import feedparser
+import requests
 
-# 🔥 import the news system
-from news_ingest import fetch_news
+from ml_model import extract_location, classify_event
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 clients = []
-events = []
+seen_titles = set()
 
 
-# 🌍 serve frontend
-@app.get("/")
-async def root():
-    return FileResponse("intel_map.html")
+# 🌍 REAL geolocation
+def get_coordinates(location):
+    try:
+        url = f"https://nominatim.openstreetmap.org/search?q={location}&format=json&limit=1"
+        res = requests.get(url, headers={"User-Agent": "intel-app"})
+        data = res.json()
+
+        if data and len(data) > 0:
+            return {
+                "lat": float(data[0]["lat"]),
+                "lng": float(data[0]["lon"])
+            }
+
+    except Exception as e:
+        print("Geo error:", e)
+
+    return None
 
 
-# 📜 history endpoint
-@app.get("/history")
-async def history():
-    return events
-
-
-# 🔌 websocket
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -32,43 +47,51 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            await websocket.receive_text()  # keep connection alive
+            await asyncio.sleep(1)
     except WebSocketDisconnect:
-        pass
-    finally:
-        if websocket in clients:
-            clients.remove(websocket)
+        clients.remove(websocket)
 
 
-# 📡 manual event endpoint (curl still works)
-@app.post("/events")
-async def receive_event(request: Request):
-    data = await request.json()
+# 📰 MAIN INTEL LOOP
+async def news_loop():
+    while True:
+        feed = feedparser.parse("https://rss.cnn.com/rss/edition.rss")
 
-    if "lat" not in data or "lng" not in data:
-        return {"error": "Missing lat/lng"}
+        for entry in feed.entries[:10]:
 
-    if "type" not in data:
-        data["type"] = "info"
+            if entry.title in seen_titles:
+                continue
 
-    events.append(data)
+            seen_titles.add(entry.title)
 
-    dead_clients = []
+            location = extract_location(entry.title)
 
-    for client in clients:
-        try:
-            await client.send_text(json.dumps(data))
-        except:
-            dead_clients.append(client)
+            if not location:
+                continue
 
-    for dc in dead_clients:
-        if dc in clients:
-            clients.remove(dc)
+            coords = get_coordinates(location)
 
-    return {"status": "sent"}
+            if not coords:
+                continue
+
+            event = {
+                "lat": coords["lat"],
+                "lng": coords["lng"],
+                "message": entry.title,
+                "type": classify_event(entry.title)
+            }
+
+            print("EVENT:", event)  # debug
+
+            for client in clients:
+                try:
+                    await client.send_text(json.dumps(event))
+                except:
+                    pass
+
+        await asyncio.sleep(20)
 
 
-# 🚀 AUTO NEWS STARTS HERE
 @app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(fetch_news(events, clients))
+async def start():
+    asyncio.create_task(news_loop())

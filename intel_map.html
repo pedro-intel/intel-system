@@ -5,12 +5,17 @@
     <meta charset="utf-8" />
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
     <style>
         body { margin: 0; }
         #map { height: 100vh; }
 
-        #status {
+        .log {
             position: absolute;
             top: 10px;
             right: 10px;
@@ -18,17 +23,16 @@
             color: lime;
             padding: 10px;
             font-size: 12px;
-            z-index: 9999;
+            max-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
         }
     </style>
 </head>
-
 <body>
 
 <div id="map"></div>
-<div id="status">Starting...</div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<div class="log" id="log">Starting...</div>
 
 <script>
     const map = L.map('map').setView([20, 0], 2);
@@ -37,56 +41,41 @@
         attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    const status = document.getElementById("status");
+    const markers = L.markerClusterGroup();
+    map.addLayer(markers);
 
-    function log(msg) {
-        console.log(msg);
-        status.innerHTML = msg;
+    const log = document.getElementById("log");
+
+    function logMsg(msg) {
+        log.innerHTML += "<br>" + msg;
     }
 
-    function addMarker(data) {
-        console.log("ADDING:", data);
+    const ws = new WebSocket("wss://intel-system.onrender.com/ws");
 
-        if (!data.lat || !data.lng) return;
-
-        const color =
-            data.type === "critical" ? "red" :
-            data.type === "warning" ? "orange" :
-            "blue";
-
-        L.circleMarker([data.lat, data.lng], {
-            color: color,
-            radius: 8
-        }).addTo(map)
-          .bindPopup(data.message || "Event");
-    }
-
-    // 🔥 LOAD HISTORY
-    fetch("/history")
-        .then(res => res.json())
-        .then(data => {
-            log("Loaded history: " + data.length);
-            data.forEach(addMarker);
-        });
-
-    // 🔥 WEBSOCKET
-    const protocol = location.protocol === "https:" ? "wss://" : "ws://";
-    const ws = new WebSocket(protocol + location.host + "/ws");
-
-    ws.onopen = () => log("WS CONNECTED");
-
-    ws.onmessage = (event) => {
-        console.log("RAW:", event.data);
-
-        try {
-            const data = JSON.parse(event.data);
-            addMarker(data);
-        } catch (e) {
-            console.error("Bad JSON:", event.data);
-        }
+    ws.onopen = () => {
+        logMsg("✅ Connected");
     };
 
-    ws.onclose = () => log("WS CLOSED");
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        logMsg("📡 " + data.message);
+
+        let color = "blue";
+
+        if (data.type === "critical") color = "red";
+        if (data.type === "political") color = "orange";
+        if (data.type === "economic") color = "green";
+
+        const marker = L.circleMarker([data.lat, data.lng], {
+            radius: 8,
+            color: color
+        });
+
+        marker.bindPopup(data.message);
+
+        markers.addLayer(marker);
+    };
 </script>
 
 </body>

@@ -1,42 +1,27 @@
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-import joblib
+import spacy
 
-FILE = "model.pkl"
+nlp = spacy.load("en_core_web_sm")
 
-def train_model(events):
-    if len(events) < 5:
-        return None
+def extract_location(text):
+    doc = nlp(text)
 
-    df = pd.DataFrame(events)
+    for ent in doc.ents:
+        if ent.label_ == "GPE":
+            return ent.text
 
-    df["t"] = df["threat"].map({"CRITICAL":3,"HIGH":2,"MEDIUM":1})
+    return None
 
-    X = df[["lat","lon","t"]]
-    y = df["t"]
 
-    model = RandomForestClassifier()
-    model.fit(X,y)
+def classify_event(text):
+    text = text.lower()
 
-    joblib.dump(model, FILE)
-    return model
+    if any(x in text for x in ["war","attack","missile","strike","explosion","conflict"]):
+        return "critical"
 
-def load_model():
-    try:
-        return joblib.load(FILE)
-    except:
-        return None
+    if any(x in text for x in ["president","election","government","policy"]):
+        return "political"
 
-def predict_hotspot(model, events):
-    if not model:
-        return None
+    if any(x in text for x in ["economy","market","inflation","stocks"]):
+        return "economic"
 
-    df = pd.DataFrame(events)
-    df["t"] = df["threat"].map({"CRITICAL":3,"HIGH":2,"MEDIUM":1})
-
-    preds = model.predict(df[["lat","lon","t"]])
-    df["p"] = preds
-
-    top = df.sort_values("p", ascending=False).iloc[0]
-
-    return {"lat": top["lat"], "lon": top["lon"], "score": top["p"]}
+    return "info"

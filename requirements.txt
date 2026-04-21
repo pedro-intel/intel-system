@@ -1,10 +1,5 @@
 fastapi
 uvicorn[standard]
-websockets
+feedparser
 requests
 spacy
-geopy
-feedparser
-scikit-learn
-pandas
-joblib
