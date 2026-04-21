@@ -8,13 +8,13 @@ app = FastAPI()
 clients = []
 
 
-# ✅ Serve your frontend
+# ✅ Serve frontend
 @app.get("/")
 async def root():
     return FileResponse("intel_map.html")
 
 
-# ✅ WebSocket endpoint (FIXED)
+# ✅ WebSocket endpoint
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     print("🔥 WS ROUTE HIT")
@@ -22,25 +22,26 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     clients.append(websocket)
 
-    print("✅ WS CONNECTED")
+    print(f"✅ WS CONNECTED | Total clients: {len(clients)}")
 
     try:
         while True:
-            # Keep connection alive
-            await websocket.send_text("ping")
+            # Wait for client messages (keeps connection alive)
+            await websocket.receive_text()
 
     except WebSocketDisconnect:
         print("❌ WS DISCONNECTED")
-        if websocket in clients:
-            clients.remove(websocket)
 
     except Exception as e:
         print("⚠️ WS ERROR:", e)
+
+    finally:
         if websocket in clients:
             clients.remove(websocket)
+        print(f"👋 Client removed | Total clients: {len(clients)}")
 
 
-# ✅ Events endpoint (broadcast to all clients)
+# ✅ Event broadcast endpoint
 @app.post("/events")
 async def receive_event(request: Request):
     data = await request.json()
@@ -51,12 +52,15 @@ async def receive_event(request: Request):
     for client in clients:
         try:
             await client.send_text(json.dumps(data))
-        except:
+        except Exception as e:
+            print("⚠️ Failed to send to client:", e)
             dead_clients.append(client)
 
-    # Clean up disconnected clients
-    for client in dead_clients:
-        if client in clients:
-            clients.remove(client)
+    # Remove dead clients
+    for dc in dead_clients:
+        if dc in clients:
+            clients.remove(dc)
+
+    print(f"📤 Sent to {len(clients)} clients")
 
     return {"status": "sent", "clients": len(clients)}

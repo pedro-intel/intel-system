@@ -10,16 +10,39 @@
     <style>
         body { margin: 0; }
         #map { height: 100vh; }
+
+        #status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: black;
+            color: lime;
+            padding: 10px;
+            font-size: 12px;
+            z-index: 9999;
+            max-width: 300px;
+            overflow-y: auto;
+            max-height: 200px;
+        }
     </style>
 </head>
 
 <body>
 
 <div id="map"></div>
+<div id="status">Starting...</div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
+    const logBox = document.getElementById("status");
+
+    function log(msg) {
+        console.log(msg);
+        logBox.innerHTML += "<br>" + msg;
+    }
+
+    // Map
     const map = L.map('map').setView([20, 0], 2);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -30,30 +53,47 @@
 
     function connectWS() {
         const protocol = (location.protocol === "https:") ? "wss://" : "ws://";
-        ws = new WebSocket(protocol + location.host + "/ws");
+        const url = protocol + location.host + "/ws";
 
-        ws.onopen = () => console.log("✅ WS connected");
+        log("Connecting to: " + url);
+
+        ws = new WebSocket(url);
+
+        ws.onopen = () => {
+            log("✅ WS CONNECTED");
+
+            // keep alive
+            setInterval(() => {
+                ws.send("keepalive");
+            }, 30000);
+        };
 
         ws.onclose = () => {
-            console.log("❌ WS closed — reconnecting...");
+            log("❌ WS CLOSED — reconnecting...");
             setTimeout(connectWS, 2000);
         };
 
-        ws.onerror = (err) => console.log("⚠️ WS error:", err);
+        ws.onerror = (err) => {
+            log("⚠️ WS ERROR");
+        };
 
         ws.onmessage = (event) => {
+            log("📩 RAW: " + event.data);
+
             try {
                 const data = JSON.parse(event.data);
 
                 if (data.lat && data.lng) {
+                    log("📍 Adding marker");
+
                     L.marker([data.lat, data.lng])
                         .addTo(map)
                         .bindPopup(data.message || "Event")
                         .openPopup();
                 }
 
-            } catch {
-                // ignore ping messages
+            } catch (e) {
+                log("Ignored (not JSON)");
             }
         };
     }
