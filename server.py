@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import asyncio
 import json
 import feedparser
@@ -21,6 +22,12 @@ app.add_middleware(
 
 clients = []
 seen_titles = set()
+
+
+# ✅ SERVE FRONTEND (FIXES YOUR 404)
+@app.get("/")
+async def serve_map():
+    return FileResponse("intel_map.html")
 
 
 # 🌍 Geocoding
@@ -50,7 +57,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     print("🟢 Client connected")
 
-    # 🔁 SEND OLD EVENTS
+    # 🔁 SEND OLD EVENTS (history)
     for row in get_recent_events():
         await websocket.send_text(json.dumps({
             "lat": row[0],
@@ -69,7 +76,7 @@ async def websocket_endpoint(websocket: WebSocket):
         print("🔴 Client disconnected")
 
 
-# 📰 Intel loop
+# 📰 News ingestion loop
 async def news_loop():
     while True:
         feed = feedparser.parse("https://rss.cnn.com/rss/edition.rss")
@@ -101,8 +108,10 @@ async def news_loop():
 
             print("EVENT:", event["message"])
 
+            # ✅ SAVE TO DB
             save_event(event)
 
+            # ✅ SEND TO CLIENTS
             for client in clients:
                 try:
                     await client.send_text(json.dumps(event))
@@ -112,6 +121,7 @@ async def news_loop():
         await asyncio.sleep(20)
 
 
+# 🚀 Start background task
 @app.on_event("startup")
 async def start():
     asyncio.create_task(news_loop())
