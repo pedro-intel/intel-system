@@ -1,20 +1,20 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse
 import json
+import asyncio
 
 app = FastAPI()
 
-# Store connected clients
 clients = []
 
 
-# ✅ Serve frontend
+# Serve frontend
 @app.get("/")
 async def root():
     return FileResponse("intel_map.html")
 
 
-# ✅ WebSocket endpoint
+# ✅ FIXED WebSocket (non-blocking, stable)
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     print("🔥 WS ROUTE HIT")
@@ -22,44 +22,39 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     clients.append(websocket)
 
-    print(f"✅ WS CONNECTED | Total clients: {len(clients)}")
+    print(f"✅ CONNECTED | clients: {len(clients)}")
 
     try:
         while True:
-            # Wait for client messages (keeps connection alive)
-            await websocket.receive_text()
+            await asyncio.sleep(1)  # 👈 KEY FIX (keeps loop alive without blocking)
 
     except WebSocketDisconnect:
-        print("❌ WS DISCONNECTED")
-
-    except Exception as e:
-        print("⚠️ WS ERROR:", e)
+        print("❌ DISCONNECTED")
 
     finally:
         if websocket in clients:
             clients.remove(websocket)
-        print(f"👋 Client removed | Total clients: {len(clients)}")
+        print(f"👋 Client removed | clients: {len(clients)}")
 
 
-# ✅ Event broadcast endpoint
+# ✅ Broadcast endpoint
 @app.post("/events")
 async def receive_event(request: Request):
     data = await request.json()
-    print("📡 Event received:", data)
+    print("📡 EVENT:", data)
 
-    dead_clients = []
+    dead = []
 
     for client in clients:
         try:
             await client.send_text(json.dumps(data))
         except Exception as e:
-            print("⚠️ Failed to send to client:", e)
-            dead_clients.append(client)
+            print("⚠️ Failed:", e)
+            dead.append(client)
 
-    # Remove dead clients
-    for dc in dead_clients:
-        if dc in clients:
-            clients.remove(dc)
+    for d in dead:
+        if d in clients:
+            clients.remove(d)
 
     print(f"📤 Sent to {len(clients)} clients")
 
