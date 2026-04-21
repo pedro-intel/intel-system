@@ -4,8 +4,10 @@ import asyncio
 import json
 import feedparser
 import requests
+from datetime import datetime
 
 from ml_model import extract_location, classify_event
+from db import save_event, get_recent_events
 
 app = FastAPI()
 
@@ -21,14 +23,14 @@ clients = []
 seen_titles = set()
 
 
-# 🌍 REAL geolocation
+# 🌍 Geocoding
 def get_coordinates(location):
     try:
         url = f"https://nominatim.openstreetmap.org/search?q={location}&format=json&limit=1"
-        res = requests.get(url, headers={"User-Agent": "intel-app"})
+        res = requests.get(url, headers={"User-Agent": "intel-system"})
         data = res.json()
 
-        if data and len(data) > 0:
+        if data:
             return {
                 "lat": float(data[0]["lat"]),
                 "lng": float(data[0]["lon"])
@@ -40,19 +42,34 @@ def get_coordinates(location):
     return None
 
 
+# 🔌 WebSocket
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     clients.append(websocket)
 
+    print("🟢 Client connected")
+
+    # 🔁 SEND OLD EVENTS
+    for row in get_recent_events():
+        await websocket.send_text(json.dumps({
+            "lat": row[0],
+            "lng": row[1],
+            "message": row[2],
+            "type": row[3],
+            "time": row[4]
+        }))
+
     try:
         while True:
             await asyncio.sleep(1)
+
     except WebSocketDisconnect:
         clients.remove(websocket)
+        print("🔴 Client disconnected")
 
 
-# 📰 MAIN INTEL LOOP
+# 📰 Intel loop
 async def news_loop():
     while True:
         feed = feedparser.parse("https://rss.cnn.com/rss/edition.rss")
@@ -78,10 +95,13 @@ async def news_loop():
                 "lat": coords["lat"],
                 "lng": coords["lng"],
                 "message": entry.title,
-                "type": classify_event(entry.title)
+                "type": classify_event(entry.title),
+                "time": datetime.utcnow().isoformat()
             }
 
-            print("EVENT:", event)  # debug
+            print("EVENT:", event["message"])
+
+            save_event(event)
 
             for client in clients:
                 try:

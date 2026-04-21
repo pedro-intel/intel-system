@@ -1,81 +1,100 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Intel Map</title>
-    <meta charset="utf-8" />
+<title>Intel System</title>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
-    <style>
-        body { margin: 0; }
-        #map { height: 100vh; }
+<style>
+body { margin: 0; }
+#map { height: 100vh; }
 
-        .log {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: black;
-            color: lime;
-            padding: 10px;
-            font-size: 12px;
-            max-width: 300px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-    </style>
+.panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: black;
+    color: #00ff00;
+    padding: 10px;
+    font-size: 12px;
+    width: 280px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+</style>
 </head>
+
 <body>
 
 <div id="map"></div>
-<div class="log" id="log">Starting...</div>
+<div class="panel" id="log">LIVE INTEL</div>
 
 <script>
-    const map = L.map('map').setView([20, 0], 2);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
+const map = L.map('map').setView([20,0],2);
 
-    const markers = L.markerClusterGroup();
-    map.addLayer(markers);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    const log = document.getElementById("log");
+const markers = L.markerClusterGroup();
+map.addLayer(markers);
 
-    function logMsg(msg) {
-        log.innerHTML += "<br>" + msg;
+let heatPoints = [];
+let heat = L.heatLayer([], {radius: 25}).addTo(map);
+
+function icon(type){
+    let color = "blue";
+    if(type==="critical") color="red";
+    if(type==="political") color="orange";
+    if(type==="economic") color="green";
+
+    return L.icon({
+        iconUrl:`https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
+        shadowUrl:'https://unpkg.com/leaflet/dist/images/marker-shadow.png',
+        iconSize:[25,41],
+        iconAnchor:[12,41]
+    });
+}
+
+function log(msg){
+    document.getElementById("log").innerHTML += "<br>"+msg;
+}
+
+const ws = new WebSocket(`wss://${location.host}/ws`);
+
+ws.onmessage = (event)=>{
+    const data = JSON.parse(event.data);
+
+    log("📡 "+data.message);
+
+    const marker = L.marker([data.lat,data.lng],{
+        icon:icon(data.type)
+    });
+
+    marker.bindPopup(`
+        <b>${data.message}</b><br>
+        ${data.type}<br>
+        ${new Date(data.time).toLocaleString()}
+    `);
+
+    markers.addLayer(marker);
+
+    // heatmap
+    heatPoints.push([data.lat,data.lng,1]);
+    heat.setLatLngs(heatPoints);
+
+    // limit size
+    if(markers.getLayers().length > 200){
+        markers.clearLayers();
+        heatPoints = [];
+        heat.setLatLngs([]);
     }
+};
 
-    const ws = new WebSocket("wss://intel-system.onrender.com/ws");
-
-    ws.onopen = () => {
-        logMsg("✅ Connected");
-    };
-
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-
-        logMsg("📡 " + data.message);
-
-        let color = "blue";
-
-        if (data.type === "critical") color = "red";
-        if (data.type === "political") color = "orange";
-        if (data.type === "economic") color = "green";
-
-        const marker = L.circleMarker([data.lat, data.lng], {
-            radius: 8,
-            color: color
-        });
-
-        marker.bindPopup(data.message);
-
-        markers.addLayer(marker);
-    };
 </script>
 
 </body>

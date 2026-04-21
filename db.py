@@ -1,43 +1,41 @@
 import sqlite3
 
-DB = "intel.db"
+conn = sqlite3.connect("intel.db", check_same_thread=False)
+cursor = conn.cursor()
 
-def init_db():
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lat REAL,
+    lng REAL,
+    message TEXT,
+    type TEXT,
+    time TEXT
+)
+""")
 
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY,
-        title TEXT,
-        threat TEXT,
-        lat REAL,
-        lon REAL,
-        time TEXT
-    )
-    """)
+conn.commit()
 
+
+def save_event(event):
+    cursor.execute("""
+    INSERT INTO events (lat, lng, message, type, time)
+    VALUES (?, ?, ?, ?, ?)
+    """, (
+        event["lat"],
+        event["lng"],
+        event["message"],
+        event["type"],
+        event["time"]
+    ))
     conn.commit()
-    conn.close()
 
-def save_events(events):
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
 
-    for e in events:
-        c.execute("INSERT INTO events (title, threat, lat, lon, time) VALUES (?, ?, ?, ?, ?)",
-                  (e["title"], e["threat"], e["lat"], e["lon"], e["time"]))
-
-    conn.commit()
-    conn.close()
-
-def load_history():
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-
-    c.execute("SELECT title, threat, lat, lon, time FROM events ORDER BY id DESC LIMIT 100")
-    rows = c.fetchall()
-
-    conn.close()
-
-    return [{"title": r[0], "threat": r[1], "lat": r[2], "lon": r[3], "time": r[4]} for r in rows]
+def get_recent_events(limit=100):
+    cursor.execute("""
+    SELECT lat, lng, message, type, time
+    FROM events
+    ORDER BY id DESC
+    LIMIT ?
+    """, (limit,))
+    return cursor.fetchall()
