@@ -1,41 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>LIVE INTEL DASHBOARD</title>
+    <title>Intel Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
     <style>
-        body {
-            margin: 0;
-            display: flex;
-            font-family: Arial;
-            background: #0b1a2a;
-            color: white;
-        }
-
-        #map {
-            height: 100vh;
-            width: 75%;
-        }
-
-        #sidebar {
-            width: 25%;
-            background: #0f2438;
-            padding: 15px;
-            overflow-y: auto;
-        }
-
-        .event {
-            padding: 10px;
-            margin-bottom: 10px;
-            background: #132f4c;
-        }
-
-        .CRITICAL { border-left: 5px solid red; }
-        .HIGH { border-left: 5px solid orange; }
-        .MEDIUM { border-left: 5px solid yellow; }
+        body { margin: 0; }
+        #map { height: 100vh; }
     </style>
 </head>
 
@@ -43,98 +17,48 @@
 
 <div id="map"></div>
 
-<div id="sidebar">
-    <h2>LIVE INTEL</h2>
-    <div id="events"></div>
-</div>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-    // 🔥 CORRECT ENDPOINTS
-    const API_HTTP = "https://intel-system.onrender.com/events";
-    const API_WS   = "wss://intel-system.onrender.com/ws";
-
     const map = L.map('map').setView([20, 0], 2);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-    let markers = [];
+    let ws;
 
-    function getColor(threat) {
-        if (threat === "CRITICAL") return "red";
-        if (threat === "HIGH") return "orange";
-        if (threat === "MEDIUM") return "yellow";
-        return "blue";
-    }
+    function connectWS() {
+        const protocol = (location.protocol === "https:") ? "wss://" : "ws://";
+        ws = new WebSocket(protocol + location.host + "/ws");
 
-    function render(data) {
-        // Clear old markers
-        markers.forEach(m => map.removeLayer(m));
-        markers = [];
-
-        const container = document.getElementById("events");
-        container.innerHTML = "";
-
-        data.forEach(event => {
-            const marker = L.circleMarker([event.lat, event.lon], {
-                radius: 8,
-                color: getColor(event.threat)
-            }).addTo(map);
-
-            markers.push(marker);
-
-            const div = document.createElement("div");
-            div.className = "event " + event.threat;
-            div.innerHTML = `<b>${event.title}</b>`;
-            container.appendChild(div);
-
-            // 🚨 Alert for critical
-            if (event.threat === "CRITICAL") {
-                console.log("🚨 CRITICAL:", event.title);
-            }
-        });
-    }
-
-    // ✅ Initial fallback load
-    async function initialLoad() {
-        try {
-            const res = await fetch(API_HTTP);
-            const data = await res.json();
-            render(data);
-        } catch (e) {
-            console.error("Initial load failed:", e);
-        }
-    }
-
-    // 🚀 REAL-TIME WebSocket
-    function startWS() {
-        const ws = new WebSocket(API_WS);
-
-        ws.onopen = () => {
-            console.log("✅ WebSocket connected");
-        };
-
-        ws.onmessage = (msg) => {
-            try {
-                const data = JSON.parse(msg.data);
-                render(data);
-            } catch (e) {
-                console.error("WS parse error:", e);
-            }
-        };
+        ws.onopen = () => console.log("✅ WS connected");
 
         ws.onclose = () => {
-            console.log("⚠️ WS closed — reconnecting...");
-            setTimeout(startWS, 3000);
+            console.log("❌ WS closed — reconnecting...");
+            setTimeout(connectWS, 2000);
         };
 
-        ws.onerror = (err) => {
-            console.error("❌ WS error:", err);
+        ws.onerror = (err) => console.log("⚠️ WS error:", err);
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.lat && data.lng) {
+                    L.marker([data.lat, data.lng])
+                        .addTo(map)
+                        .bindPopup(data.message || "Event")
+                        .openPopup();
+                }
+
+            } catch {
+                // ignore ping messages
+            }
         };
     }
 
-    // 🚀 Start system
-    initialLoad();
-    startWS();
+    connectWS();
 </script>
 
 </body>
