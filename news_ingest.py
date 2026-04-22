@@ -236,7 +236,7 @@ def get_gdelt_events() -> list:
     raw_events.sort(key=lambda x: x["num_articles"], reverse=True)
 
     processed = []
-    for e in raw_events[:max_records if max_records else 100]:
+    for e in raw_events[:100]:
         processed.append({
             "lat":      e["lat"],
             "lng":      e["lng"],
