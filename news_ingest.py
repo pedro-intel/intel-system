@@ -1,7 +1,6 @@
 # news_ingest.py
 # GDELT v2 CSV ingestion — downloads raw event files directly
 # Published every 15 minutes at data.gdeltproject.org
-# No API key required. Works on Render free tier.
 
 import requests
 import csv
@@ -11,7 +10,6 @@ import io
 GDELT_LASTUPDATE = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
 HEADERS = {"User-Agent": "intel-system/1.0"}
 
-# GDELT uses FIPS country codes — map to readable names
 COUNTRY_CODES = {
     "AF": "Afghanistan", "AL": "Albania", "AG": "Algeria", "AO": "Angola",
     "AR": "Argentina", "AM": "Armenia", "AS": "Australia", "AU": "Austria",
@@ -19,38 +17,39 @@ COUNTRY_CODES = {
     "BE": "Belgium", "BL": "Bolivia", "BK": "Bosnia", "BR": "Brazil",
     "BU": "Bulgaria", "UV": "Burkina Faso", "BM": "Burma", "CB": "Cambodia",
     "CM": "Cameroon", "CA": "Canada", "CI": "Chile", "CH": "China",
-    "CO": "Colombia", "CF": "Congo", "HR": "Croatia", "CU": "Cuba",
-    "EZ": "Czech Republic", "DA": "Denmark", "EC": "Ecuador", "EG": "Egypt",
-    "ET": "Ethiopia", "FI": "Finland", "FR": "France", "GG": "Georgia",
-    "GM": "Germany", "GH": "Ghana", "GR": "Greece", "GT": "Guatemala",
-    "GV": "Guinea", "HA": "Haiti", "HO": "Honduras", "HU": "Hungary",
-    "IN": "India", "ID": "Indonesia", "IR": "Iran", "IZ": "Iraq",
-    "EI": "Ireland", "IS": "Israel", "IT": "Italy", "JA": "Japan",
-    "JO": "Jordan", "KZ": "Kazakhstan", "KE": "Kenya", "KV": "Kosovo",
-    "KU": "Kuwait", "KG": "Kyrgyzstan", "LA": "Laos", "LG": "Latvia",
-    "LE": "Lebanon", "LY": "Libya", "LH": "Lithuania", "LU": "Luxembourg",
-    "MY": "Malaysia", "ML": "Mali", "MX": "Mexico", "MD": "Moldova",
-    "MG": "Mongolia", "MO": "Morocco", "MZ": "Mozambique", "WA": "Namibia",
-    "NP": "Nepal", "NL": "Netherlands", "NU": "Nicaragua", "NG": "Niger",
-    "NI": "Nigeria", "KN": "North Korea", "NO": "Norway", "PK": "Pakistan",
-    "PS": "Palestine", "PM": "Panama", "PE": "Peru", "RP": "Philippines",
-    "PL": "Poland", "PO": "Portugal", "QA": "Qatar", "RO": "Romania",
-    "RS": "Russia", "RW": "Rwanda", "SA": "Saudi Arabia", "SG": "Senegal",
-    "RB": "Serbia", "SL": "Sierra Leone", "SO": "Somalia", "SF": "South Africa",
-    "KS": "South Korea", "OD": "South Sudan", "SP": "Spain", "CE": "Sri Lanka",
-    "SU": "Sudan", "SW": "Sweden", "SZ": "Switzerland", "SY": "Syria",
-    "TW": "Taiwan", "TI": "Tajikistan", "TZ": "Tanzania", "TH": "Thailand",
-    "TS": "Tunisia", "TU": "Turkey", "TX": "Turkmenistan", "UG": "Uganda",
-    "UP": "Ukraine", "AE": "UAE", "UK": "United Kingdom", "US": "United States",
-    "UY": "Uruguay", "UZ": "Uzbekistan", "VE": "Venezuela", "VM": "Vietnam",
-    "YM": "Yemen", "ZA": "Zambia", "ZI": "Zimbabwe", "GQ": "Equatorial Guinea",
+    "CO": "Colombia", "CF": "Congo", "CG": "Congo", "HR": "Croatia",
+    "CU": "Cuba", "EZ": "Czech Republic", "DA": "Denmark", "EC": "Ecuador",
+    "EG": "Egypt", "ET": "Ethiopia", "FI": "Finland", "FR": "France",
+    "GG": "Georgia", "GM": "Germany", "GH": "Ghana", "GR": "Greece",
+    "GT": "Guatemala", "GV": "Guinea", "GW": "Guinea-Bissau", "HA": "Haiti",
+    "HO": "Honduras", "HU": "Hungary", "IN": "India", "ID": "Indonesia",
+    "IR": "Iran", "IZ": "Iraq", "EI": "Ireland", "IS": "Israel",
+    "IT": "Italy", "JA": "Japan", "JE": "Jersey", "JO": "Jordan",
+    "KZ": "Kazakhstan", "KE": "Kenya", "KV": "Kosovo", "KU": "Kuwait",
+    "KG": "Kyrgyzstan", "LA": "Laos", "LG": "Latvia", "LE": "Lebanon",
+    "LY": "Libya", "LH": "Lithuania", "LU": "Luxembourg", "MY": "Malaysia",
+    "ML": "Mali", "MX": "Mexico", "MD": "Moldova", "MG": "Mongolia",
+    "MO": "Morocco", "MZ": "Mozambique", "WA": "Namibia", "NP": "Nepal",
+    "NL": "Netherlands", "NZ": "New Zealand", "NU": "Nicaragua",
+    "NG": "Niger", "NI": "Nigeria", "KN": "North Korea", "NO": "Norway",
+    "PK": "Pakistan", "PA": "Paraguay", "PS": "Palestine", "PM": "Panama",
+    "PE": "Peru", "RP": "Philippines", "PL": "Poland", "PO": "Portugal",
+    "QA": "Qatar", "RO": "Romania", "RS": "Russia", "RW": "Rwanda",
+    "SA": "Saudi Arabia", "SG": "Senegal", "RB": "Serbia", "SN": "Singapore",
+    "SL": "Sierra Leone", "SO": "Somalia", "SF": "South Africa",
+    "KS": "South Korea", "OD": "South Sudan", "SP": "Spain",
+    "CE": "Sri Lanka", "SU": "Sudan", "SW": "Sweden", "SZ": "Switzerland",
+    "SY": "Syria", "TW": "Taiwan", "TI": "Tajikistan", "TZ": "Tanzania",
+    "TH": "Thailand", "TD": "Chad", "TS": "Tunisia", "TU": "Turkey",
+    "TX": "Turkmenistan", "UG": "Uganda", "UP": "Ukraine", "AE": "UAE",
+    "UK": "United Kingdom", "US": "United States", "UY": "Uruguay",
+    "UZ": "Uzbekistan", "VE": "Venezuela", "VM": "Vietnam", "YM": "Yemen",
+    "ZA": "Zambia", "ZI": "Zimbabwe", "GQ": "Equatorial Guinea",
     "BH": "Bahrain", "PG": "Papua New Guinea", "FJ": "Fiji",
-    "JE": "Jersey", "GY": "Guyana", "PP": "Papua New Guinea",
-    "BP": "Solomon Islands", "TD": "Chad", "PA": "Paraguay",
-    "NZ": "New Zealand", "SN": "Singapore", "CG": "Congo",
+    "GY": "Guyana", "BP": "Solomon Islands", "PP": "Papua New Guinea",
 }
 
-# GDELT v2 CAMEO event codes we care about
+# GDELT CAMEO codes — conflict/crisis/military only (no diplomatic noise)
 RELEVANT_CAMEO = {
     "18":  "critical", "180": "critical", "181": "critical",
     "182": "critical", "183": "critical", "184": "critical",
@@ -64,49 +63,48 @@ RELEVANT_CAMEO = {
     "155": "warning",
 }
 
-# CAMEO root code → readable action description
 CODE_DESCRIPTIONS = {
-    "18": "armed conflict",    "180": "military action",
-    "181": "blockade imposed", "182": "territory occupied",
-    "183": "active fighting",  "184": "mass violence",
-    "185": "assassination",    "186": "massacre",
-    "19": "mass violence",     "190": "mass violence",
-    "195": "kidnapping",       "196": "hijacking",
-    "17": "coercive action",   "170": "coercion",
-    "171": "seizure",          "172": "arrest/detention",
-    "173": "expulsion",        "174": "sanctions imposed",
-    "175": "threat issued",    "14": "protest",
-    "140": "political dissent","141": "demonstration",
-    "145": "violent protest",  "15": "military posture",
-    "150": "military action",  "151": "military alert raised",
+    "18": "armed conflict",     "180": "military action",
+    "181": "blockade imposed",  "182": "territory occupied",
+    "183": "active fighting",   "184": "mass violence",
+    "185": "assassination",     "186": "massacre",
+    "19": "mass violence",      "190": "mass violence",
+    "195": "kidnapping",        "196": "hijacking",
+    "17": "coercive action",    "170": "coercion",
+    "171": "seizure",           "172": "arrest/detention",
+    "173": "expulsion",         "174": "sanctions imposed",
+    "175": "threat issued",     "14": "protest",
+    "140": "political dissent", "141": "demonstration",
+    "145": "violent protest",   "15": "military posture",
+    "150": "military action",   "151": "military alert raised",
     "152": "troop mobilization","155": "military halt",
-    "01": "statement issued",  "02": "appeal made",
-    "03": "cooperation intent","04": "diplomatic talks",
-    "05": "diplomatic cooperation",
 }
 
-# CSV column indices (GDELT v2 export format)
+# Noisy domestic actors to filter out (especially for US events)
+SKIP_ACTORS = {
+    "POLICE", "GUNMAN", "VOTER", "KING", "WORKER", "RESIDENT",
+    "STUDENT", "JUDGE", "JURY", "LAWYER", "PROSECUTOR", "PRISON",
+    "SCHOOL", "UNIVERSITY", "COLLEGE", "WEBSITE", "CARRIER",
+    "AIRLINE", "CHURCH", "HOSPITAL", "COURT",
+}
+
 COL_EVENTCODE      = 26
 COL_ACTOR1NAME     = 6
 COL_ACTOR2NAME     = 16
 COL_ACTIONGEO_NAME = 53
-COL_ACTIONGEO_CC   = 55  # Country code
+COL_ACTIONGEO_CC   = 55
 COL_ACTIONGEO_LAT  = 56
 COL_ACTIONGEO_LNG  = 57
 COL_NUMARTICLES    = 33
-COL_AVGTONE        = 34
-COL_SOURCEURL      = 60
 
 
 def resolve_country(code: str, location_name: str) -> str:
-    """Convert country code to full name, falling back to location_name."""
     if code and code.upper() in COUNTRY_CODES:
         return COUNTRY_CODES[code.upper()]
     return location_name or code or "Unknown location"
 
 
 def get_action_description(event_code: str) -> str:
-    """Get human-readable action from CAMEO code."""
     for code, desc in CODE_DESCRIPTIONS.items():
         if event_code.startswith(code):
             return desc
@@ -114,20 +112,17 @@ def get_action_description(event_code: str) -> str:
 
 
 def build_message(event: dict) -> str:
-    """Build a clean human-readable message from GDELT event fields."""
     country  = event.get("country_name", "Unknown location")
     location = event.get("location", "")
     actor1   = event.get("actor1", "").title()
     actor2   = event.get("actor2", "").title()
     action   = event.get("action", "activity")
 
-    # Use specific location if available and different from country
     place = location if location and location.lower() != country.lower() else country
 
-    # Clean up generic actor names
-    skip_actors = {"", "None", "Citizen", "People", "Individual"}
-    a1 = actor1 if actor1 not in skip_actors else ""
-    a2 = actor2 if actor2 not in skip_actors else ""
+    skip = {"", "None"} | {s.title() for s in SKIP_ACTORS}
+    a1 = actor1 if actor1 not in skip else ""
+    a2 = actor2 if actor2 not in skip else ""
 
     if a1 and a2:
         return f"{a1} — {action} involving {a2} in {place}"
@@ -138,7 +133,6 @@ def build_message(event: dict) -> str:
 
 
 def get_latest_gdelt_url() -> str | None:
-    """Fetch the URL of the most recent GDELT v2 export file."""
     try:
         res = requests.get(GDELT_LASTUPDATE, headers=HEADERS, timeout=10)
         for line in res.text.strip().split("\n"):
@@ -152,7 +146,6 @@ def get_latest_gdelt_url() -> str | None:
 
 
 def download_gdelt_events(url: str) -> list:
-    """Download and parse a GDELT v2 export CSV zip file."""
     try:
         print(f"⬇️  Downloading GDELT: {url.split('/')[-1]}")
         res = requests.get(url, headers=HEADERS, timeout=30)
@@ -170,9 +163,12 @@ def download_gdelt_events(url: str) -> list:
                 if len(row) < 58:
                     continue
 
-                event_code = row[COL_EVENTCODE].strip()
-                lat_str    = row[COL_ACTIONGEO_LAT].strip()
-                lng_str    = row[COL_ACTIONGEO_LNG].strip()
+                event_code   = row[COL_EVENTCODE].strip()
+                lat_str      = row[COL_ACTIONGEO_LAT].strip()
+                lng_str      = row[COL_ACTIONGEO_LNG].strip()
+                country_code = row[COL_ACTIONGEO_CC].strip() if len(row) > COL_ACTIONGEO_CC else ""
+                actor1       = row[COL_ACTOR1NAME].strip()
+                actor2       = row[COL_ACTOR2NAME].strip()
 
                 if not lat_str or not lng_str:
                     continue
@@ -185,27 +181,24 @@ def download_gdelt_events(url: str) -> list:
                 if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
                     continue
 
+                # Determine severity from CAMEO code
                 severity = None
                 for code, sev in RELEVANT_CAMEO.items():
                     if event_code.startswith(code):
                         severity = sev
                         break
 
-                # Skip pure domestic US law enforcement events (too noisy)
-                if country_code == "US" and severity == "critical":
-                    skip_actors = {"POLICE", "GUNMAN", "VOTER", "KING", "WORKER",
-                                   "RESIDENT", "STUDENT", "JUDGE", "JURY", "LAWYER"}
-                    if actor1.upper() in skip_actors and not actor2:
-                        continue
-
                 if not severity:
                     continue
 
-                country_code  = row[COL_ACTIONGEO_CC].strip() if len(row) > COL_ACTIONGEO_CC else ""
+                # Filter noisy domestic events — skip if actor is generic
+                # and country is US/CA/AU/UK (high volume domestic noise)
+                if country_code in ("US", "CA", "AS", "UK"):
+                    if actor1.upper() in SKIP_ACTORS and not actor2:
+                        continue
+
                 location_name = row[COL_ACTIONGEO_NAME].strip()
                 country_name  = resolve_country(country_code, location_name)
-                actor1        = row[COL_ACTOR1NAME].strip()
-                actor2        = row[COL_ACTOR2NAME].strip()
                 num_arts      = int(row[COL_NUMARTICLES]) if row[COL_NUMARTICLES].strip().isdigit() else 1
                 action        = get_action_description(event_code)
 
@@ -234,12 +227,10 @@ def download_gdelt_events(url: str) -> list:
 
 
 def get_news(max_records: int = 50) -> list:
-    """Compatibility stub — not used in GDELT CSV mode."""
     return []
 
 
 def get_gdelt_events() -> list:
-    """Fetch latest GDELT file and return processed events."""
     url = get_latest_gdelt_url()
     if not url:
         print("⚠️ Could not get GDELT file URL")
@@ -249,7 +240,6 @@ def get_gdelt_events() -> list:
     if not raw_events:
         return []
 
-    # Sort by coverage — most-reported events first
     raw_events.sort(key=lambda x: x["num_articles"], reverse=True)
 
     processed = []
