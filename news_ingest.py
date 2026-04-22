@@ -1,6 +1,5 @@
 # news_ingest.py
-# GDELT v2 CSV ingestion — downloads raw event files directly
-# Published every 15 minutes at data.gdeltproject.org
+# GDELT v2 CSV ingestion — high quality filtered events only
 
 import requests
 import csv
@@ -13,11 +12,11 @@ HEADERS = {"User-Agent": "intel-system/1.0"}
 COUNTRY_CODES = {
     "AF": "Afghanistan", "AL": "Albania", "AG": "Algeria", "AO": "Angola",
     "AR": "Argentina", "AM": "Armenia", "AS": "Australia", "AU": "Austria",
-    "AJ": "Azerbaijan", "BA": "Bahrain", "BG": "Bangladesh", "BO": "Belarus",
+    "AJ": "Azerbaijan", "BH": "Bahrain", "BG": "Bangladesh", "BO": "Belarus",
     "BE": "Belgium", "BL": "Bolivia", "BK": "Bosnia", "BR": "Brazil",
     "BU": "Bulgaria", "UV": "Burkina Faso", "BM": "Burma", "CB": "Cambodia",
     "CM": "Cameroon", "CA": "Canada", "CI": "Chile", "CH": "China",
-    "CO": "Colombia", "CF": "Congo", "CG": "Congo", "HR": "Croatia",
+    "CO": "Colombia", "CF": "Congo", "CG": "DR Congo", "HR": "Croatia",
     "CU": "Cuba", "EZ": "Czech Republic", "DA": "Denmark", "EC": "Ecuador",
     "EG": "Egypt", "ET": "Ethiopia", "FI": "Finland", "FR": "France",
     "GG": "Georgia", "GM": "Germany", "GH": "Ghana", "GR": "Greece",
@@ -45,49 +44,71 @@ COUNTRY_CODES = {
     "UK": "United Kingdom", "US": "United States", "UY": "Uruguay",
     "UZ": "Uzbekistan", "VE": "Venezuela", "VM": "Vietnam", "YM": "Yemen",
     "ZA": "Zambia", "ZI": "Zimbabwe", "GQ": "Equatorial Guinea",
-    "BH": "Bahrain", "PG": "Papua New Guinea", "FJ": "Fiji",
-    "GY": "Guyana", "BP": "Solomon Islands", "PP": "Papua New Guinea",
+    "PG": "Papua New Guinea", "FJ": "Fiji", "GY": "Guyana",
+    "BP": "Solomon Islands", "MU": "Mauritius", "MV": "Maldives",
+    "LI": "Liberia", "MR": "Mauritania", "SB": "Serbia",
 }
 
-# GDELT CAMEO codes — conflict/crisis/military only (no diplomatic noise)
+# ── TIGHTENED CAMEO CODES ─────────────────────────────────────────────────────
+# Only genuine conflict, military, and serious coercion events
+# Removed: 14x (protest), 170/17 (generic coercion) — too noisy
 RELEVANT_CAMEO = {
-    "18":  "critical", "180": "critical", "181": "critical",
-    "182": "critical", "183": "critical", "184": "critical",
-    "185": "critical", "186": "critical", "19":  "critical",
-    "190": "critical", "195": "critical", "196": "critical",
-    "17":  "warning",  "170": "warning",  "171": "warning",
-    "172": "warning",  "173": "warning",  "174": "warning",
-    "175": "warning",  "14":  "warning",  "140": "warning",
-    "141": "warning",  "145": "warning",  "15":  "warning",
-    "150": "warning",  "151": "warning",  "152": "warning",
-    "155": "warning",
+    # CRITICAL — direct violence and military action
+    "180": "critical",  # Use conventional military force
+    "181": "critical",  # Impose blockade
+    "182": "critical",  # Occupy territory
+    "183": "critical",  # Fight with small arms
+    "184": "critical",  # Use unconventional mass violence
+    "185": "critical",  # Assassinate
+    "186": "critical",  # Massacre
+    "190": "critical",  # Use unconventional mass violence (general)
+    "195": "critical",  # Abduct / Kidnap
+    "196": "critical",  # Hijack
+    "18":  "critical",  # Assault (catch-all, after specifics)
+    "19":  "critical",  # Mass violence (catch-all, after specifics)
+    # WARNING — serious but not direct violence
+    "172": "warning",   # Arrest / Detain
+    "173": "warning",   # Expel / Deport
+    "174": "warning",   # Impose sanctions / embargo
+    "175": "warning",   # Threaten with force
+    "145": "warning",   # Protest violently
+    "151": "warning",   # Increase military alert
+    "152": "warning",   # Mobilize / increase troops
+    "171": "warning",   # Seize / Confiscate property
 }
 
 CODE_DESCRIPTIONS = {
-    "18": "armed conflict",     "180": "military action",
-    "181": "blockade imposed",  "182": "territory occupied",
-    "183": "active fighting",   "184": "mass violence",
-    "185": "assassination",     "186": "massacre",
-    "19": "mass violence",      "190": "mass violence",
-    "195": "kidnapping",        "196": "hijacking",
-    "17": "coercive action",    "170": "coercion",
-    "171": "seizure",           "172": "arrest/detention",
-    "173": "expulsion",         "174": "sanctions imposed",
-    "175": "threat issued",     "14": "protest",
-    "140": "political dissent", "141": "demonstration",
-    "145": "violent protest",   "15": "military posture",
-    "150": "military action",   "151": "military alert raised",
-    "152": "troop mobilization","155": "military halt",
+    "180": "military strike",       "181": "blockade imposed",
+    "182": "territory occupied",    "183": "armed clashes",
+    "184": "mass violence",         "185": "assassination",
+    "186": "massacre",              "190": "mass violence",
+    "195": "kidnapping",            "196": "hijacking",
+    "18":  "armed assault",         "19":  "mass violence",
+    "172": "mass arrests",          "173": "mass expulsion",
+    "174": "sanctions imposed",     "175": "military threat",
+    "145": "violent protest",       "151": "military alert raised",
+    "152": "troop mobilization",    "171": "assets seized",
 }
 
-# Noisy domestic actors to filter out (especially for US events)
-SKIP_ACTORS = {
-    "POLICE", "GUNMAN", "VOTER", "KING", "WORKER", "RESIDENT",
-    "STUDENT", "JUDGE", "JURY", "LAWYER", "PROSECUTOR", "PRISON",
-    "SCHOOL", "UNIVERSITY", "COLLEGE", "WEBSITE", "CARRIER",
-    "AIRLINE", "CHURCH", "HOSPITAL", "COURT",
+# ── NOISE FILTERS ─────────────────────────────────────────────────────────────
+# Actor names that indicate GDELT parsing artifacts, not real actors
+JUNK_ACTORS = {
+    "MEDIA", "NEWS OUTLET", "CRIMINAL", "COMPANY", "BUSINESS",
+    "WEBSITE", "CARRIER", "AIRLINE", "SCHOOL", "UNIVERSITY",
+    "COLLEGE", "CHURCH", "HOSPITAL", "COURT", "PRISON",
+    "POLICE", "GUNMAN", "VOTER", "KING", "WORKER",
+    "RESIDENT", "STUDENT", "JUDGE", "JURY", "LAWYER",
+    "PROSECUTOR", "PRODUCER", "ACTOR", "MICROSOFT",
+    "GOOGLE", "FACEBOOK", "TWITTER", "INTERNET",
 }
 
+# Minimum number of articles covering an event — filters single-source noise
+MIN_ARTICLES = 3
+
+# Countries that generate disproportionate domestic noise
+HIGH_NOISE_COUNTRIES = {"US", "CA", "AS", "UK", "AU"}
+
+# CSV column indices
 COL_EVENTCODE      = 26
 COL_ACTOR1NAME     = 6
 COL_ACTOR2NAME     = 16
@@ -96,6 +117,7 @@ COL_ACTIONGEO_CC   = 55
 COL_ACTIONGEO_LAT  = 56
 COL_ACTIONGEO_LNG  = 57
 COL_NUMARTICLES    = 33
+COL_AVGTONE        = 34
 
 
 def resolve_country(code: str, location_name: str) -> str:
@@ -105,31 +127,38 @@ def resolve_country(code: str, location_name: str) -> str:
 
 
 def get_action_description(event_code: str) -> str:
-    for code, desc in CODE_DESCRIPTIONS.items():
-        if event_code.startswith(code):
-            return desc
-    return "activity"
+    # Match longest code first for specificity
+    for length in [3, 2]:
+        prefix = event_code[:length]
+        if prefix in CODE_DESCRIPTIONS:
+            return CODE_DESCRIPTIONS[prefix]
+    return CODE_DESCRIPTIONS.get(event_code[:2], "military activity")
+
+
+def is_junk_actor(actor: str) -> bool:
+    return not actor or actor.upper() in JUNK_ACTORS
 
 
 def build_message(event: dict) -> str:
-    country  = event.get("country_name", "Unknown location")
+    country  = event.get("country_name", "Unknown")
     location = event.get("location", "")
     actor1   = event.get("actor1", "").title()
     actor2   = event.get("actor2", "").title()
-    action   = event.get("action", "activity")
+    action   = event.get("action", "military activity")
 
-    place = location if location and location.lower() != country.lower() else country
+    # Use specific city/region if available
+    place = location if (location and location.lower() != country.lower()
+                         and len(location) > 2) else country
 
-    skip = {"", "None"} | {s.title() for s in SKIP_ACTORS}
-    a1 = actor1 if actor1 not in skip else ""
-    a2 = actor2 if actor2 not in skip else ""
+    a1 = "" if is_junk_actor(actor1.upper()) else actor1
+    a2 = "" if is_junk_actor(actor2.upper()) else actor2
 
     if a1 and a2:
         return f"{a1} — {action} involving {a2} in {place}"
     elif a1:
         return f"{a1} — {action} in {place}"
     else:
-        return f"{action.capitalize()} reported in {place}"
+        return f"{action.capitalize()} in {place}"
 
 
 def get_latest_gdelt_url() -> str | None:
@@ -163,43 +192,46 @@ def download_gdelt_events(url: str) -> list:
                 if len(row) < 58:
                     continue
 
+                # Parse core fields first
                 event_code   = row[COL_EVENTCODE].strip()
                 lat_str      = row[COL_ACTIONGEO_LAT].strip()
                 lng_str      = row[COL_ACTIONGEO_LNG].strip()
                 country_code = row[COL_ACTIONGEO_CC].strip() if len(row) > COL_ACTIONGEO_CC else ""
                 actor1       = row[COL_ACTOR1NAME].strip()
                 actor2       = row[COL_ACTOR2NAME].strip()
+                num_arts_str = row[COL_NUMARTICLES].strip()
+                num_arts     = int(num_arts_str) if num_arts_str.isdigit() else 0
 
+                # ── FILTER 1: must have coordinates ──
                 if not lat_str or not lng_str:
                     continue
-
                 lat = float(lat_str)
                 lng = float(lng_str)
-
                 if lat == 0.0 and lng == 0.0:
                     continue
                 if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
                     continue
 
-                # Determine severity from CAMEO code
+                # ── FILTER 2: minimum article coverage ──
+                if num_arts < MIN_ARTICLES:
+                    continue
+
+                # ── FILTER 3: relevant CAMEO code ──
                 severity = None
                 for code, sev in RELEVANT_CAMEO.items():
                     if event_code.startswith(code):
                         severity = sev
                         break
-
                 if not severity:
                     continue
 
-                # Filter noisy domestic events — skip if actor is generic
-                # and country is US/CA/AU/UK (high volume domestic noise)
-                if country_code in ("US", "CA", "AS", "UK"):
-                    if actor1.upper() in SKIP_ACTORS and not actor2:
+                # ── FILTER 4: no junk actors from high-noise countries ──
+                if country_code in HIGH_NOISE_COUNTRIES:
+                    if is_junk_actor(actor1) and is_junk_actor(actor2):
                         continue
 
                 location_name = row[COL_ACTIONGEO_NAME].strip()
                 country_name  = resolve_country(country_code, location_name)
-                num_arts      = int(row[COL_NUMARTICLES]) if row[COL_NUMARTICLES].strip().isdigit() else 1
                 action        = get_action_description(event_code)
 
                 events.append({
@@ -218,7 +250,7 @@ def download_gdelt_events(url: str) -> list:
             except (ValueError, IndexError):
                 continue
 
-        print(f"✅ Parsed {len(events)} relevant events from GDELT")
+        print(f"✅ Parsed {len(events)} quality events from GDELT")
         return events
 
     except Exception as e:
@@ -240,16 +272,28 @@ def get_gdelt_events() -> list:
     if not raw_events:
         return []
 
+    # Sort by coverage volume — most-reported events first
     raw_events.sort(key=lambda x: x["num_articles"], reverse=True)
 
     processed = []
-    for e in raw_events[:100]:
+    seen_locations = set()
+
+    for e in raw_events:
+        if len(processed) >= 75:
+            break
+
+        # Deduplicate by country + action type to avoid map flooding
+        dedup_key = f"{e['country_name']}:{e['event_code'][:2]}"
+        if dedup_key in seen_locations:
+            continue
+        seen_locations.add(dedup_key)
+
         processed.append({
             "lat":      e["lat"],
             "lng":      e["lng"],
             "message":  build_message(e),
             "type":     e["severity"],
-            "location": e.get("country_name", e.get("location", "")),
+            "location": e["country_name"],
             "source":   "GDELT",
         })
 
