@@ -13,8 +13,8 @@ from db import save_event
 
 app = FastAPI()
 
-# Thread-safe client list
 clients: list[WebSocket] = []
+_news_loop_running = False  # Guard against multiple loop instances
 
 
 @app.get("/")
@@ -24,7 +24,7 @@ async def home():
 
 @app.head("/")
 async def head_home():
-    """Handle HEAD requests (used by Render health checks)."""
+    """Handle HEAD requests (Render health checks)."""
     return Response()
 
 
@@ -32,7 +32,7 @@ async def head_home():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     clients.append(websocket)
-    print("🟢 Client connected")
+    print(f"🟢 Client connected ({len(clients)} total)")
 
     # Replay recent events from DB so map isn't empty on connect
     from db import get_recent_events
@@ -49,16 +49,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            # Properly wait for client messages or disconnect signals
             try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                await asyncio.wait_for(websocket.receive_text(), timeout=30)
             except asyncio.TimeoutError:
-                # Send a ping to keep connection alive
+                # Send keepalive ping every 30s
                 await websocket.send_text(json.dumps({"ping": True}))
     except (WebSocketDisconnect, Exception):
         if websocket in clients:
             clients.remove(websocket)
-        print("🔴 Client disconnected")
+        print(f"🔴 Client disconnected ({len(clients)} remaining)")
 
 
 def fake_coordinates():
@@ -89,7 +88,7 @@ def fetch_rss_news():
 
 
 async def broadcast(event: dict):
-    """Send event to all connected clients, remove dead ones."""
+    """Send event to all connected clients, clean up dead connections."""
     dead = []
     for client in clients:
         try:
@@ -103,52 +102,67 @@ async def broadcast(event: dict):
 
 async def news_loop():
     """Main loop: fetch RSS, classify, geolocate, broadcast."""
+    global _news_loop_running
+
+    # Prevent multiple instances of this loop
+    if _news_loop_running:
+        print("⚠️ news_loop already running — skipping duplicate")
+        return
+
+    _news_loop_running = True
     seen_titles: set = set()
+    print("🚀 news_loop started")
 
-    while True:
-        print(f"🔄 Fetching news... ({len(clients)} client(s) connected)")
+    try:
+        while True:
+            print(f"🔄 Fetching news... ({len(clients)} client(s) connected)")
 
-        news_items = fetch_rss_news()
+            news_items = fetch_rss_news()
+            new_count = 0
 
-        for article in news_items:
-            title = article["title"]
+            for article in news_items:
+                title = article["title"]
 
-            # Skip already-seen headlines
-            if title in seen_titles:
-                continue
-            seen_titles.add(title)
+                if title in seen_titles:
+                    continue
+                seen_titles.add(title)
 
-            # Keep seen set from growing unbounded
-            if len(seen_titles) > 500:
-                seen_titles.clear()
+                if len(seen_titles) > 500:
+                    seen_titles.clear()
 
-            text = title + " " + article.get("summary", "")
-            location = extract_location(text)
+                text = title + " " + article.get("summary", "")
+                location = extract_location(text)
 
-            if location:
-                lat, lng = location
-            else:
-                coords = fake_coordinates()
-                lat, lng = coords["lat"], coords["lng"]
+                if location:
+                    lat, lng = location
+                else:
+                    coords = fake_coordinates()
+                    lat, lng = coords["lat"], coords["lng"]
 
-            event = {
-                "lat": lat,
-                "lng": lng,
-                "message": title,
-                "type": classify_event(text),
-                "time": datetime.utcnow().isoformat()
-            }
+                event = {
+                    "lat": lat,
+                    "lng": lng,
+                    "message": title,
+                    "type": classify_event(text),
+                    "time": datetime.utcnow().isoformat()
+                }
 
-            print(f"📡 EVENT [{event['type'].upper()}]: {title[:80]}")
+                print(f"📡 EVENT [{event['type'].upper()}]: {title[:80]}")
 
-            save_event(event)
-            await broadcast(event)
+                save_event(event)
+                await broadcast(event)
+                new_count += 1
 
-            # Small delay so frontend isn't flooded
-            await asyncio.sleep(0.5)
+                await asyncio.sleep(0.5)
 
-        print(f"✅ Cycle done. Waiting 60s...")
-        await asyncio.sleep(60)
+            print(f"✅ Cycle done ({new_count} new events). Waiting 60s...")
+            await asyncio.sleep(60)
+
+    except Exception as e:
+        print(f"❌ news_loop crashed: {e}")
+    finally:
+        _news_loop_running = False
+        print("⚠️ news_loop exited — will not restart automatically")
 
 
 @app.on_event("startup")
