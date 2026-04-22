@@ -5,6 +5,7 @@ import requests
 import csv
 import zipfile
 import io
+import re
 
 GDELT_LASTUPDATE = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
 HEADERS = {"User-Agent": "intel-system/1.0"}
@@ -47,67 +48,76 @@ COUNTRY_CODES = {
     "PG": "Papua New Guinea", "FJ": "Fiji", "GY": "Guyana",
     "BP": "Solomon Islands", "MU": "Mauritius", "MV": "Maldives",
     "LI": "Liberia", "MR": "Mauritania", "MT": "Malta", "WE": "West Bank",
-    "EK": "Ecuador", "SB": "Serbia", "CK": "Cayman Islands",
+    "EK": "Ecuador", "BC": "Bosnia", "MV": "Maldives", "SB": "Serbia",
+    "CK": "Cayman Islands", "JM": "Jamaica", "TT": "Trinidad and Tobago",
+    "BB": "Barbados", "LC": "Saint Lucia", "VC": "Saint Vincent",
+    "DO": "Dominican Republic", "CJ": "Cayman Islands",
 }
 
-# ── TIGHTENED CAMEO CODES ─────────────────────────────────────────────────────
-# Only direct violence and serious military events
-# Removed: 173 (deportation — immigration noise), 182 (territory — misclassified)
+# Only genuine conflict/military CAMEO codes — no deportation, no territory
 RELEVANT_CAMEO = {
-    # CRITICAL — direct violence
     "183": "critical",  # Fight with small arms
-    "184": "critical",  # Use unconventional mass violence
+    "184": "critical",  # Mass violence
     "185": "critical",  # Assassinate
     "186": "critical",  # Massacre
     "190": "critical",  # Mass violence (general)
-    "195": "critical",  # Abduct / Kidnap
+    "195": "critical",  # Kidnap
     "196": "critical",  # Hijack
-    "180": "critical",  # Use conventional military force
-    "181": "critical",  # Impose blockade
+    "180": "critical",  # Military force
+    "181": "critical",  # Blockade
     "18":  "critical",  # Armed assault (catch-all)
     "19":  "critical",  # Mass violence (catch-all)
-    # WARNING — serious military/security events
-    "172": "warning",   # Arrest / Detain (mass arrests only via min_articles)
-    "174": "warning",   # Impose sanctions / embargo
-    "175": "warning",   # Threaten with force
-    "145": "warning",   # Protest violently
-    "151": "warning",   # Increase military alert
-    "152": "warning",   # Mobilize / increase troops
-    "171": "warning",   # Seize / Confiscate property
+    "172": "warning",   # Mass arrests
+    "174": "warning",   # Sanctions
+    "175": "warning",   # Military threat
+    "145": "warning",   # Violent protest
+    "151": "warning",   # Military alert
+    "152": "warning",   # Troop mobilization
+    "171": "warning",   # Assets seized
 }
 
 CODE_DESCRIPTIONS = {
-    "183": "armed clashes",         "184": "mass violence",
-    "185": "assassination",         "186": "massacre",
-    "190": "mass violence",         "195": "kidnapping",
-    "196": "hijacking",             "180": "military strike",
-    "181": "blockade imposed",      "18":  "armed assault",
-    "19":  "mass violence",         "172": "mass arrests",
-    "174": "sanctions imposed",     "175": "military threat",
-    "145": "violent protest",       "151": "military alert raised",
-    "152": "troop mobilization",    "171": "assets seized",
+    "183": "armed clashes",      "184": "mass violence",
+    "185": "assassination",      "186": "massacre",
+    "190": "mass violence",      "195": "kidnapping",
+    "196": "hijacking",          "180": "military strike",
+    "181": "blockade imposed",   "18":  "armed assault",
+    "19":  "mass violence",      "172": "mass arrests",
+    "174": "sanctions imposed",  "175": "military threat",
+    "145": "violent protest",    "151": "military alert raised",
+    "152": "troop mobilization", "171": "assets seized",
 }
 
-# Junk actor names — GDELT parsing artifacts
+# All actor names that are not real actors
 JUNK_ACTORS = {
-    "MEDIA", "NEWS OUTLET", "CRIMINAL", "COMPANY", "BUSINESS",
-    "WEBSITE", "CARRIER", "AIRLINE", "SCHOOL", "UNIVERSITY",
-    "COLLEGE", "CHURCH", "HOSPITAL", "COURT", "PRISON",
-    "POLICE", "GUNMAN", "VOTER", "WORKER", "RESIDENT",
-    "STUDENT", "JUDGE", "JURY", "LAWYER", "PROSECUTOR",
-    "PRODUCER", "ACTOR", "MICROSOFT", "GOOGLE", "FACEBOOK",
-    "ROBBER", "MAGISTRATE", "CITIZEN", "GANG", "HIGH COURT",
-    "SERIAL KILLER", "THE US", "ARSONIST", "EQUALITY STATE",
-    "CHAMBER", "CONGRESS", "PARLIAMENT", "COMMITTEE",
+    # Media/companies
+    "MEDIA", "NEWS OUTLET", "COMPANY", "BUSINESS", "WEBSITE",
+    "CARRIER", "AIRLINE", "RYANAIR", "MICROSOFT", "GOOGLE",
+    "FACEBOOK", "TWITTER", "INTERNET", "NEWS AGENCY",
+    # Generic people
+    "CRIMINAL", "GUNMAN", "VOTER", "WORKER", "RESIDENT",
+    "STUDENT", "ROBBER", "SERIAL KILLER", "ARSONIST",
+    "CITIZEN", "PEOPLE", "INDIVIDUAL", "PERSON",
+    # Institutions (too generic)
+    "POLICE", "COURT", "PRISON", "SCHOOL", "UNIVERSITY",
+    "COLLEGE", "CHURCH", "HOSPITAL", "PARLIAMENT",
+    "COMMITTEE", "CHAMBER", "CONGRESS",
+    # Legal
+    "JUDGE", "JURY", "LAWYER", "PROSECUTOR", "MAGISTRATE",
+    # Geographic terms used as actors
+    "VILLAGE", "CITY", "TOWN", "REGION", "STATE",
+    "PROVINCE", "DISTRICT", "COUNTY", "BOROUGH",
+    # Other artifacts
+    "ADMINISTRATION", "ARMED GROUP", "THE US",
+    "EQUALITY STATE", "NEW BRUNSWICK", "HIGH COURT",
 }
 
-# Minimum articles to filter single-source noise
+# Country names — if actor = country name, it's redundant
+COUNTRY_NAMES = set(COUNTRY_CODES.values())
+
 MIN_ARTICLES = 5
+HIGH_NOISE_COUNTRIES = {"US", "CA", "AS", "UK", "AU", "EI", "FR", "IT", "SP"}
 
-# Countries with high domestic noise — require real actors
-HIGH_NOISE_COUNTRIES = {"US", "CA", "AS", "UK", "AU", "EI"}
-
-# CSV column indices
 COL_EVENTCODE      = 26
 COL_ACTOR1NAME     = 6
 COL_ACTOR2NAME     = 16
@@ -132,22 +142,54 @@ def get_action_description(event_code: str) -> str:
     return "military activity"
 
 
-def is_junk_actor(actor: str) -> bool:
-    return not actor or actor.upper() in JUNK_ACTORS
+def is_junk_actor(actor: str, country_name: str) -> bool:
+    """Return True if actor is a junk/artifact name."""
+    if not actor:
+        return True
+    upper = actor.upper().strip()
+    # In junk list
+    if upper in JUNK_ACTORS:
+        return True
+    # Is just a country name (redundant)
+    if actor.title() in COUNTRY_NAMES:
+        return True
+    # Is same as country (e.g. "Iran" acting in Iran)
+    if actor.title() == country_name:
+        return True
+    # Very short (1-2 chars)
+    if len(actor) <= 2:
+        return True
+    # Looks like a FIPS code (2 uppercase letters)
+    if re.match(r'^[A-Z]{2}$', actor):
+        return True
+    return False
+
+
+def clean_actor(actor: str) -> str:
+    """Title-case and clean up actor name."""
+    return actor.strip().title()
 
 
 def build_message(event: dict) -> str:
     country  = event.get("country_name", "Unknown")
     location = event.get("location", "")
-    actor1   = event.get("actor1", "").title()
-    actor2   = event.get("actor2", "").title()
+    actor1   = event.get("actor1", "")
+    actor2   = event.get("actor2", "")
     action   = event.get("action", "military activity")
 
-    place = location if (location and location.lower() != country.lower()
-                         and len(location) > 2) else country
+    # Use specific city if it's different from country and meaningful
+    place = (location if location
+             and location.lower() != country.lower()
+             and len(location) > 3
+             and location.title() not in COUNTRY_NAMES
+             else country)
 
-    a1 = "" if is_junk_actor(actor1.upper()) else actor1
-    a2 = "" if is_junk_actor(actor2.upper()) else actor2
+    a1 = clean_actor(actor1) if not is_junk_actor(actor1, country) else ""
+    a2 = clean_actor(actor2) if not is_junk_actor(actor2, country) else ""
+
+    # Avoid redundant "X involving X" patterns
+    if a1 and a2 and a1.lower() == a2.lower():
+        a2 = ""
 
     if a1 and a2:
         return f"{a1} — {action} involving {a2} in {place}"
@@ -220,14 +262,14 @@ def download_gdelt_events(url: str) -> list:
                 if not severity:
                     continue
 
-                # Filter 4: require real actors for high-noise countries
-                if country_code in HIGH_NOISE_COUNTRIES:
-                    if is_junk_actor(actor1) and is_junk_actor(actor2):
-                        continue
-
                 location_name = row[COL_ACTIONGEO_NAME].strip()
                 country_name  = resolve_country(country_code, location_name)
                 action        = get_action_description(event_code)
+
+                # Filter 4: high-noise countries need at least one real actor
+                if country_code in HIGH_NOISE_COUNTRIES:
+                    if is_junk_actor(actor1, country_name) and is_junk_actor(actor2, country_name):
+                        continue
 
                 events.append({
                     "lat":          lat,
@@ -277,7 +319,7 @@ def get_gdelt_events() -> list:
         if len(processed) >= 75:
             break
 
-        # One event per country per event type to avoid flooding
+        # One event per country per CAMEO type to avoid flooding
         dedup_key = f"{e['country_name']}:{e['event_code'][:2]}"
         if dedup_key in seen_locations:
             continue
