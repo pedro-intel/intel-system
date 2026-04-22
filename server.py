@@ -1,6 +1,6 @@
 # server.py
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response
 from fastapi.responses import FileResponse
 import asyncio
 import json
@@ -22,13 +22,19 @@ async def home():
     return FileResponse("intel_map.html")
 
 
+@app.head("/")
+async def head_home():
+    """Handle HEAD requests (used by Render health checks)."""
+    return Response()
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     clients.append(websocket)
     print("🟢 Client connected")
 
-    # Send recent events from DB on connect so map isn't empty
+    # Replay recent events from DB so map isn't empty on connect
     from db import get_recent_events
     recent = get_recent_events(limit=50)
     for row in recent:
@@ -38,13 +44,17 @@ async def websocket_endpoint(websocket: WebSocket):
         }
         try:
             await websocket.send_text(json.dumps(event))
-        except:
+        except Exception:
             pass
 
     try:
         while True:
-            # Keep connection alive, client doesn't need to send anything
-            await asyncio.sleep(30)
+            # Properly wait for client messages or disconnect signals
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=60)
+            except asyncio.TimeoutError:
+                # Send a ping to keep connection alive
+                await websocket.send_text(json.dumps({"ping": True}))
     except (WebSocketDisconnect, Exception):
         if websocket in clients:
             clients.remove(websocket)
@@ -118,7 +128,6 @@ async def news_loop():
             if location:
                 lat, lng = location
             else:
-                # Only use fake coords for truly unlocatable events (fallback)
                 coords = fake_coordinates()
                 lat, lng = coords["lat"], coords["lng"]
 
@@ -135,7 +144,7 @@ async def news_loop():
             save_event(event)
             await broadcast(event)
 
-            # Small delay between events so frontend isn't flooded
+            # Small delay so frontend isn't flooded
             await asyncio.sleep(0.5)
 
         print(f"✅ Cycle done. Waiting 60s...")
