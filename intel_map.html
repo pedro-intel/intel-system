@@ -1,83 +1,470 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Live Intel Map</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTINEL // Global Intelligence Monitor</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #03080f;
+    --panel: #070d18;
+    --border: #0d2238;
+    --accent: #00c8ff;
+    --accent2: #00ff9d;
+    --warn: #ffb800;
+    --crit: #ff3e3e;
+    --info: #4da6ff;
+    --text: #c8dff0;
+    --dim: #3a5a78;
+  }
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-        }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-        #map {
-            height: 100vh;
-        }
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 50px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: 4px;
+    color: var(--accent);
+  }
+  .logo span { color: #4a7a9b; font-weight: 400; font-size: 11px; letter-spacing: 2px; margin-left: 10px; }
 
-        #status {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: black;
-            color: lime;
-            padding: 10px;
-            font-family: monospace;
-            z-index: 1000;
-        }
-    </style>
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+  }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--accent2);
+    font-size: 11px;
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+  .live-dot.red { background: var(--crit); animation: none; }
+  .live-dot.yellow { background: var(--warn); animation: none; }
+
+  #clock { color: var(--text); letter-spacing: 2px; font-size: 13px; }
+
+  .stat { text-align: center; }
+  .stat .val { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--accent); }
+  .stat .lbl { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── MAP ── */
+  #map { width: 100%; height: 100%; }
+
+  /* ── RIGHT PANEL ── */
+  .side-panel {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  #event-count {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  /* Filter buttons */
+  .filters {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .filter-btn {
+    flex: 1;
+    padding: 5px 0;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: 3px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .filter-btn.all    { color: var(--text); }
+  .filter-btn.crit   { color: var(--crit); }
+  .filter-btn.warn   { color: var(--warn); }
+  .filter-btn.info   { color: var(--info); }
+  .filter-btn.active { background: rgba(0,200,255,0.1); border-color: var(--accent); color: var(--accent); }
+
+  /* Event feed */
+  #event-feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  #event-feed::-webkit-scrollbar { width: 4px; }
+  #event-feed::-webkit-scrollbar-track { background: transparent; }
+  #event-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .event-card {
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+    border-left: 3px solid var(--dim);
+    background: rgba(255,255,255,0.02);
+    cursor: pointer;
+    transition: background 0.15s;
+    animation: slideIn 0.3s ease;
+  }
+  .event-card:hover { background: rgba(0,200,255,0.05); }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .event-card.critical { border-left-color: var(--crit); }
+  .event-card.warning  { border-left-color: var(--warn); }
+  .event-card.info     { border-left-color: var(--info); }
+
+  .event-type {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .event-card.critical .event-type { color: var(--crit); }
+  .event-card.warning  .event-type { color: var(--warn); }
+  .event-card.info     .event-type { color: var(--info); }
+
+  .event-msg {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .event-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+  }
+
+  /* Status bar */
+  .status-bar-bottom {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Leaflet popup override */
+  .leaflet-popup-content-wrapper {
+    background: #070d18;
+    border: 1px solid #0d2238;
+    border-radius: 4px;
+    color: #c8dff0;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .leaflet-popup-tip { background: #070d18; }
+  .leaflet-popup-content { margin: 12px 16px; font-size: 13px; line-height: 1.6; }
+  .popup-type { font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 2px; margin-bottom: 6px; }
+  .popup-type.critical { color: #ff3e3e; }
+  .popup-type.warning  { color: #ffb800; }
+  .popup-type.info     { color: #4da6ff; }
+  .popup-time { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #3a5a78; margin-top: 6px; }
+</style>
 </head>
 <body>
 
-<div id="map"></div>
-<div id="status">Starting...</div>
+<header>
+  <div>
+    <span class="logo">SENTINEL<span>// GLOBAL INTEL MONITOR</span></span>
+  </div>
+  <div class="header-right">
+    <div class="stat"><div class="val" id="stat-total">0</div><div class="lbl">EVENTS</div></div>
+    <div class="stat"><div class="val" id="stat-crit" style="color:var(--crit)">0</div><div class="lbl">CRITICAL</div></div>
+    <div class="stat"><div class="val" id="stat-warn" style="color:var(--warn)">0</div><div class="lbl">WARNING</div></div>
+    <div class="live-badge">
+      <div class="live-dot" id="ws-dot"></div>
+      <span id="ws-status">CONNECTING</span>
+    </div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
 
+<div class="main">
+  <div id="map"></div>
+
+  <div class="side-panel">
+    <div class="panel-header">
+      <span class="panel-title">LIVE INTEL FEED</span>
+      <span id="event-count">0 events</span>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn all active" onclick="setFilter('all')">ALL</button>
+      <button class="filter-btn crit" onclick="setFilter('critical')">CRIT</button>
+      <button class="filter-btn warn" onclick="setFilter('warning')">WARN</button>
+      <button class="filter-btn info" onclick="setFilter('info')">INFO</button>
+    </div>
+
+    <div id="event-feed"></div>
+
+    <div class="status-bar-bottom">
+      <span id="last-update">No data yet</span>
+      <span id="feed-count">0 in feed</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map').setView([20, 0], 2);
+// ── MAP SETUP ────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: false }).setView([20, 10], 2);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO',
+  subdomains: 'abcd',
+  maxZoom: 19
 }).addTo(map);
 
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-// 🌐 FIXED WEBSOCKET (IMPORTANT)
-const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+// ── STATE ────────────────────────────────────────────────────
+let allEvents = [];
+let markers   = [];
+let currentFilter = 'all';
+let stats = { total: 0, critical: 0, warning: 0, info: 0 };
 
-const statusBox = document.getElementById("status");
+// ── MARKER COLORS ────────────────────────────────────────────
+const COLORS = { critical: '#ff3e3e', warning: '#ffb800', info: '#4da6ff' };
+const RADII  = { critical: 10, warning: 8, info: 6 };
 
+function makeMarker(event) {
+  const color  = COLORS[event.type] || COLORS.info;
+  const radius = RADII[event.type]  || 6;
 
-ws.onopen = () => {
-    console.log("✅ WebSocket connected");
-    statusBox.innerHTML = "🟢 WS CONNECTED";
-};
+  const marker = L.circleMarker([event.lat, event.lng], {
+    radius,
+    color,
+    fillColor: color,
+    fillOpacity: 0.75,
+    weight: 1.5,
+    opacity: 0.9
+  }).addTo(map);
 
-ws.onmessage = (event) => {
-    console.log("📡 RAW:", event.data);
+  const typeLabel = (event.type || 'info').toUpperCase();
+  const time = event.time ? new Date(event.time).toUTCString().slice(0, 25) : '';
 
-    const data = JSON.parse(event.data);
+  marker.bindPopup(`
+    <div class="popup-type ${event.type}">${typeLabel}</div>
+    <div>${event.message}</div>
+    <div class="popup-time">${time}</div>
+  `);
 
-    const marker = L.marker([data.lat, data.lng]).addTo(map);
+  // Pulse animation for new critical events
+  if (event.type === 'critical') {
+    const pulse = L.circleMarker([event.lat, event.lng], {
+      radius, color, fillColor: color, fillOpacity: 0, weight: 2, opacity: 0.6
+    }).addTo(map);
+    let r = radius, growing = true;
+    const anim = setInterval(() => {
+      r = growing ? r + 0.4 : r - 0.4;
+      if (r > radius + 8) growing = false;
+      if (r < radius)     { clearInterval(anim); pulse.remove(); return; }
+      pulse.setRadius(r);
+    }, 50);
+  }
 
-    marker.bindPopup(`
-        <b>${data.type.toUpperCase()}</b><br>
-        ${data.message}<br>
-        <small>${data.time}</small>
-    `);
+  return marker;
+}
 
-    statusBox.innerHTML = "📡 Receiving data...";
-};
+// ── EVENT FEED CARD ──────────────────────────────────────────
+function addEventCard(event, marker) {
+  const feed = document.getElementById('event-feed');
+  const card = document.createElement('div');
+  card.className = `event-card ${event.type}`;
+  card.dataset.type = event.type;
 
-ws.onerror = (err) => {
-    console.error("❌ WS error:", err);
-    statusBox.innerHTML = "❌ WS ERROR";
-};
+  const time = event.time ? new Date(event.time).toLocaleTimeString('en-US', { hour12: false }) : '';
 
-ws.onclose = () => {
-    statusBox.innerHTML = "🔴 DISCONNECTED";
-};
+  card.innerHTML = `
+    <div class="event-type">${(event.type || 'info').toUpperCase()}</div>
+    <div class="event-msg">${event.message}</div>
+    <div class="event-time">${time} UTC</div>
+  `;
+
+  card.onclick = () => {
+    map.setView([event.lat, event.lng], 5, { animate: true });
+    marker.openPopup();
+  };
+
+  feed.insertBefore(card, feed.firstChild);
+
+  // Apply current filter visibility
+  if (currentFilter !== 'all' && event.type !== currentFilter) {
+    card.style.display = 'none';
+  }
+
+  // Cap feed at 200 cards
+  while (feed.children.length > 200) {
+    feed.removeChild(feed.lastChild);
+  }
+
+  document.getElementById('feed-count').textContent =
+    feed.querySelectorAll('.event-card:not([style*="none"])').length + ' in feed';
+}
+
+// ── FILTER ───────────────────────────────────────────────────
+function setFilter(type) {
+  currentFilter = type;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.filter-btn.${type === 'all' ? 'all' : type === 'critical' ? 'crit' : type === 'warning' ? 'warn' : 'info'}`).classList.add('active');
+
+  document.querySelectorAll('.event-card').forEach(card => {
+    card.style.display = (type === 'all' || card.dataset.type === type) ? '' : 'none';
+  });
+
+  const visible = document.querySelectorAll('.event-card:not([style*="none"])').length;
+  document.getElementById('feed-count').textContent = visible + ' in feed';
+}
+
+// ── STATS ────────────────────────────────────────────────────
+function updateStats(type) {
+  stats.total++;
+  if (type === 'critical') stats.critical++;
+  else if (type === 'warning') stats.warning++;
+  else stats.info++;
+
+  document.getElementById('stat-total').textContent = stats.total;
+  document.getElementById('stat-crit').textContent  = stats.critical;
+  document.getElementById('stat-warn').textContent  = stats.warning;
+  document.getElementById('event-count').textContent = stats.total + ' events';
+  document.getElementById('last-update').textContent =
+    'Last: ' + new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+// ── PROCESS INCOMING EVENT ───────────────────────────────────
+function processEvent(data) {
+  if (!data.lat || !data.lng) return;
+
+  const marker = makeMarker(data);
+  markers.push(marker);
+  allEvents.push(data);
+
+  addEventCard(data, marker);
+  updateStats(data.type);
+}
+
+// ── WEBSOCKET WITH AUTO-RECONNECT ────────────────────────────
+let ws, reconnectTimer;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  const dot    = document.getElementById('ws-dot');
+  const status = document.getElementById('ws-status');
+
+  ws.onopen = () => {
+    dot.className = 'live-dot';       // green + pulsing
+    status.textContent = 'LIVE';
+    clearTimeout(reconnectTimer);
+    console.log('✅ WebSocket connected');
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      processEvent(data);
+    } catch (err) {
+      console.warn('⚠️ Bad message:', e.data);
+    }
+  };
+
+  ws.onerror = () => {
+    dot.className = 'live-dot red';
+    status.textContent = 'ERROR';
+  };
+
+  ws.onclose = () => {
+    dot.className = 'live-dot yellow';
+    status.textContent = 'RECONNECTING';
+    reconnectTimer = setTimeout(connect, 5000);
+    console.log('🔴 WS closed — reconnecting in 5s');
+  };
+}
+
+connect();
+
+// ── CLOCK ────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toUTCString().slice(17, 25) + ' UTC';
+}, 1000);
 </script>
-
 </body>
 </html>

@@ -1,114 +1,63 @@
+# news_ingest.py
+# NOTE: RSS fetching is now handled directly in server.py's news_loop().
+# This module is kept for any standalone use or future expansion.
+
 import feedparser
-import asyncio
-import json
-import re
 import requests
 
 RSS_FEEDS = [
     "http://feeds.bbci.co.uk/news/world/rss.xml",
-    "https://rss.cnn.com/rss/edition_world.rss"
+    "https://rss.cnn.com/rss/edition_world.rss",
+]
+
+RELEVANT_KEYWORDS = [
+    "war", "military", "attack", "conflict", "missile",
+    "strike", "killed", "explosion", "troops", "crisis",
+    "tension", "sanction", "protest", "nuclear", "coup"
 ]
 
 
-# =========================
-# GEOLOCATION (REAL)
-# =========================
-def geocode_location(place):
-    try:
-        url = f"https://nominatim.openstreetmap.org/search?q={place}&format=json&limit=1"
-        res = requests.get(url, headers={"User-Agent": "intel-system"})
-        data = res.json()
+def is_relevant(text: str) -> bool:
+    return any(k in text.lower() for k in RELEVANT_KEYWORDS)
 
+
+def get_news(max_per_feed: int = 10) -> list:
+    """
+    Fetch and return relevant news articles from RSS feeds.
+    Returns list of dicts: [{title, summary}]
+    """
+    items = []
+    for url in RSS_FEEDS:
+        try:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:max_per_feed]:
+                title = entry.get("title", "").strip()
+                summary = entry.get("summary", "").strip()
+
+                if not title:
+                    continue
+
+                if is_relevant(title + " " + summary):
+                    items.append({"title": title, "summary": summary})
+        except Exception as e:
+            print(f"⚠️ RSS fetch error ({url}): {e}")
+
+    return items
+
+
+def geocode_location(place: str) -> dict | None:
+    """Geocode a place name using Nominatim. Returns {lat, lng} or None."""
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        res = requests.get(
+            url,
+            params={"q": place, "format": "json", "limit": 1},
+            headers={"User-Agent": "intel-system/1.0"},
+            timeout=3
+        )
+        data = res.json()
         if data:
-            return {
-                "lat": float(data[0]["lat"]),
-                "lng": float(data[0]["lon"])
-            }
-    except:
+            return {"lat": float(data[0]["lat"]), "lng": float(data[0]["lon"])}
+    except Exception:
         pass
     return None
-
-
-def extract_location(text):
-    words = re.findall(r'\b[A-Z][a-z]+\b', text)
-
-    for word in words:
-        if len(word) > 3:
-            coords = geocode_location(word)
-            if coords:
-                return coords
-
-    return None
-
-
-# =========================
-# CLASSIFICATION
-# =========================
-def classify_event(text):
-    text = text.lower()
-
-    critical = ["war", "missile", "attack", "strike", "killed", "explosion"]
-    warning = ["military", "tension", "threat", "conflict"]
-
-    for w in critical:
-        if w in text:
-            return "critical"
-
-    for w in warning:
-        if w in text:
-            return "warning"
-
-    return "info"
-
-
-def is_relevant(text):
-    keywords = ["war", "military", "attack", "conflict", "missile", "strike"]
-    return any(k in text.lower() for k in keywords)
-
-
-# =========================
-# MAIN LOOP
-# =========================
-async def fetch_news(events, clients):
-    print("🔥 INTEL ENGINE STARTED")
-
-    seen = set()
-
-    while True:
-        print("📡 scanning feeds...")
-
-        for url in RSS_FEEDS:
-            feed = feedparser.parse(url)
-
-            for entry in feed.entries[:10]:
-
-                if entry.title in seen:
-                    continue
-
-                if not is_relevant(entry.title):
-                    continue
-
-                seen.add(entry.title)
-
-                coords = extract_location(entry.title)
-                if not coords:
-                    continue
-
-                event = {
-                    "lat": coords["lat"],
-                    "lng": coords["lng"],
-                    "message": entry.title,
-                    "type": classify_event(entry.title)
-                }
-
-                print("🧠 EVENT:", event["message"])
-
-                events.append(event)
-
-                for client in clients:
-                    try:
-                        await client.send_text(json.dumps(event))
-                    except:
-                        pass
-
-        await asyncio.sleep(20)

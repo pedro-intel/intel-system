@@ -5,14 +5,16 @@ from fastapi.responses import FileResponse
 import asyncio
 import json
 import random
+import feedparser
 from datetime import datetime
 
 from ml_model import extract_location, classify_event, load_model
-from news_ingest import get_news
 from db import save_event
 
 app = FastAPI()
-clients = []
+
+# Thread-safe client list
+clients: list[WebSocket] = []
 
 
 @app.get("/")
@@ -26,11 +28,26 @@ async def websocket_endpoint(websocket: WebSocket):
     clients.append(websocket)
     print("🟢 Client connected")
 
+    # Send recent events from DB on connect so map isn't empty
+    from db import get_recent_events
+    recent = get_recent_events(limit=50)
+    for row in recent:
+        event = {
+            "lat": row[0], "lng": row[1],
+            "message": row[2], "type": row[3], "time": row[4]
+        }
+        try:
+            await websocket.send_text(json.dumps(event))
+        except:
+            pass
+
     try:
         while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        clients.remove(websocket)
+            # Keep connection alive, client doesn't need to send anything
+            await asyncio.sleep(30)
+    except (WebSocketDisconnect, Exception):
+        if websocket in clients:
+            clients.remove(websocket)
         print("🔴 Client disconnected")
 
 
@@ -41,68 +58,92 @@ def fake_coordinates():
     }
 
 
-async def news_loop():
-    while True:
-        print("🔄 Fetching news...")
-
-        # 🔥 ALWAYS SEND TEST EVENT
-        test_event = {
-            "lat": 18.4655,
-            "lng": -66.1057,
-            "message": "TEST EVENT: Puerto Rico Live",
-            "type": "critical",
-            "time": datetime.utcnow().isoformat()
-        }
-
-        save_event(test_event)
-
-        for client in clients:
-            try:
-                await client.send_text(json.dumps(test_event))
-            except:
-                pass
-
-        # 📰 REAL NEWS
+def fetch_rss_news():
+    """Fetch news from RSS feeds. Returns list of {title, summary} dicts."""
+    RSS_FEEDS = [
+        "http://feeds.bbci.co.uk/news/world/rss.xml",
+        "https://rss.cnn.com/rss/edition_world.rss",
+    ]
+    items = []
+    for url in RSS_FEEDS:
         try:
-            news_items = get_news()
-        except:
-            news_items = []
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:10]:
+                items.append({
+                    "title": entry.get("title", ""),
+                    "summary": entry.get("summary", "")
+                })
+        except Exception as e:
+            print(f"⚠️ RSS error for {url}: {e}")
+    return items
 
-        for article in news_items[:5]:
-            location = extract_location(article["title"])
+
+async def broadcast(event: dict):
+    """Send event to all connected clients, remove dead ones."""
+    dead = []
+    for client in clients:
+        try:
+            await client.send_text(json.dumps(event))
+        except Exception:
+            dead.append(client)
+    for c in dead:
+        if c in clients:
+            clients.remove(c)
+
+
+async def news_loop():
+    """Main loop: fetch RSS, classify, geolocate, broadcast."""
+    seen_titles: set = set()
+
+    while True:
+        print(f"🔄 Fetching news... ({len(clients)} client(s) connected)")
+
+        news_items = fetch_rss_news()
+
+        for article in news_items:
+            title = article["title"]
+
+            # Skip already-seen headlines
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+
+            # Keep seen set from growing unbounded
+            if len(seen_titles) > 500:
+                seen_titles.clear()
+
+            text = title + " " + article.get("summary", "")
+            location = extract_location(text)
 
             if location:
                 lat, lng = location
             else:
+                # Only use fake coords for truly unlocatable events (fallback)
                 coords = fake_coordinates()
                 lat, lng = coords["lat"], coords["lng"]
 
             event = {
                 "lat": lat,
                 "lng": lng,
-                "message": article["title"],
-                "type": classify_event(article["title"]),
+                "message": title,
+                "type": classify_event(text),
                 "time": datetime.utcnow().isoformat()
             }
 
-            print("EVENT:", event["message"])
+            print(f"📡 EVENT [{event['type'].upper()}]: {title[:80]}")
 
             save_event(event)
+            await broadcast(event)
 
-            for client in clients:
-                try:
-                    await client.send_text(json.dumps(event))
-                except:
-                    pass
+            # Small delay between events so frontend isn't flooded
+            await asyncio.sleep(0.5)
 
-        await asyncio.sleep(30)
+        print(f"✅ Cycle done. Waiting 60s...")
+        await asyncio.sleep(60)
 
 
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Starting server...")
-
-    # ✅ SAFE MODEL LOAD (won’t crash app)
+    print("🚀 Starting SENTINEL server...")
     load_model()
-
     asyncio.create_task(news_loop())
