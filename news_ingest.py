@@ -132,15 +132,31 @@ COL_EVENTCODE      = 26
 COL_ACTOR1NAME     = 6
 COL_ACTOR2NAME     = 16
 COL_ACTIONGEO_NAME = 53
-COL_ACTIONGEO_CC   = 54  # FIPS 10-4 country code (was wrongly 55 = ADM1 state code)
+COL_ACTIONGEO_CC   = 54  # FIPS 10-4 country code
+COL_ACTIONGEO_ADM1 = 55  # ADM1 code — first 2 chars = country code
 COL_ACTIONGEO_LAT  = 56
 COL_ACTIONGEO_LNG  = 57
 COL_NUMARTICLES    = 33
 
+# Reverse lookup for location name matching
+COUNTRY_NAME_TO_CODE = {v.lower(): k for k, v in COUNTRY_CODES.items()}
 
-def resolve_country(code: str, location_name: str) -> str:
+
+def resolve_country(code: str, location_name: str, adm1_code: str = "") -> str:
+    """Try multiple strategies to resolve a full country name."""
+    # Strategy 1: direct FIPS code
     if code and code.upper() in COUNTRY_CODES:
         return COUNTRY_CODES[code.upper()]
+    # Strategy 2: first 2 chars of ADM1 code (e.g. "IR01" -> "IR" -> Iran)
+    if adm1_code and len(adm1_code) >= 2:
+        cc = adm1_code[:2].upper()
+        if cc in COUNTRY_CODES:
+            return COUNTRY_CODES[cc]
+    # Strategy 3: location name matches a known country
+    if location_name:
+        for part in [location_name] + location_name.split(","):
+            if part.strip().lower() in COUNTRY_NAME_TO_CODE:
+                return part.strip().title()
     return location_name or code or "Unknown location"
 
 
@@ -256,6 +272,7 @@ def download_gdelt_events(url: str) -> list:
                 lat_str      = row[COL_ACTIONGEO_LAT].strip()
                 lng_str      = row[COL_ACTIONGEO_LNG].strip()
                 country_code = row[COL_ACTIONGEO_CC].strip() if len(row) > COL_ACTIONGEO_CC else ""
+                adm1_code    = row[COL_ACTIONGEO_ADM1].strip() if len(row) > COL_ACTIONGEO_ADM1 else ""
                 actor1       = row[COL_ACTOR1NAME].strip()
                 actor2       = row[COL_ACTOR2NAME].strip()
                 num_arts_str = row[COL_NUMARTICLES].strip()
@@ -285,7 +302,7 @@ def download_gdelt_events(url: str) -> list:
                     continue
 
                 location_name = row[COL_ACTIONGEO_NAME].strip()
-                country_name  = resolve_country(country_code, location_name)
+                country_name  = resolve_country(country_code, location_name, adm1_code)
                 action        = get_action_description(event_code)
 
                 # Filter 4: high-noise countries need at least one real actor
