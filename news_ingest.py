@@ -48,7 +48,7 @@ COUNTRY_CODES = {
     "PG": "Papua New Guinea", "FJ": "Fiji", "GY": "Guyana",
     "BP": "Solomon Islands", "MU": "Mauritius", "MV": "Maldives",
     "LI": "Liberia", "MR": "Mauritania", "MT": "Malta", "WE": "West Bank",
-    "EK": "Ecuador", "BC": "Bosnia", "MV": "Maldives", "SB": "Serbia",
+    "EK": "Ecuador", "BC": "Botswana", "SB": "Serbia",
     "CK": "Cayman Islands", "JM": "Jamaica", "TT": "Trinidad and Tobago",
     "BB": "Barbados", "LC": "Saint Lucia", "VC": "Saint Vincent",
     "DO": "Dominican Republic", "CJ": "Cayman Islands",
@@ -177,11 +177,23 @@ def build_message(event: dict) -> str:
     actor2   = event.get("actor2", "")
     action   = event.get("action", "military activity")
 
-    # Use specific city if it's different from country and meaningful
+    # Locations that are known to be misassigned by GDELT
+    # (city names from other countries, or overly generic terms)
+    SUSPECT_LOCATIONS = {
+        "Samara",    # Russian city often misassigned
+        "Africa",    # Continent, not a city
+        "Europe",    # Continent
+        "Asia",      # Continent
+        "America",   # Continent
+        "New Brunswick",  # Canadian province misassigned to France
+    }
+
+    # Use specific city only if it's meaningful and not suspect
     place = (location if location
              and location.lower() != country.lower()
              and len(location) > 3
              and location.title() not in COUNTRY_NAMES
+             and location not in SUSPECT_LOCATIONS
              else country)
 
     a1 = clean_actor(actor1) if not is_junk_actor(actor1, country) else ""
