@@ -1,100 +1,82 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Intel System</title>
+    <title>Live Intel Map</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
 
-<style>
-body { margin: 0; }
-#map { height: 100vh; }
+        #map {
+            height: 100vh;
+        }
 
-.panel {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: black;
-    color: #00ff00;
-    padding: 10px;
-    font-size: 12px;
-    width: 280px;
-    max-height: 300px;
-    overflow-y: auto;
-}
-</style>
+        #status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: black;
+            color: lime;
+            padding: 10px;
+            font-family: monospace;
+            z-index: 1000;
+        }
+    </style>
 </head>
-
 <body>
 
 <div id="map"></div>
-<div class="panel" id="log">LIVE INTEL</div>
+<div id="status">Starting...</div>
 
 <script>
+const map = L.map('map').setView([20, 0], 2);
 
-const map = L.map('map').setView([20,0],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+}).addTo(map);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-const markers = L.markerClusterGroup();
-map.addLayer(markers);
+// 🌐 FIXED WEBSOCKET (IMPORTANT)
+const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
 
-let heatPoints = [];
-let heat = L.heatLayer([], {radius: 25}).addTo(map);
+const statusBox = document.getElementById("status");
 
-function icon(type){
-    let color = "blue";
-    if(type==="critical") color="red";
-    if(type==="political") color="orange";
-    if(type==="economic") color="green";
 
-    return L.icon({
-        iconUrl:`https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
-        shadowUrl:'https://unpkg.com/leaflet/dist/images/marker-shadow.png',
-        iconSize:[25,41],
-        iconAnchor:[12,41]
-    });
-}
-
-function log(msg){
-    document.getElementById("log").innerHTML += "<br>"+msg;
-}
-
-const ws = new WebSocket(`wss://${location.host}/ws`);
-
-ws.onmessage = (event)=>{
-    const data = JSON.parse(event.data);
-
-    log("📡 "+data.message);
-
-    const marker = L.marker([data.lat,data.lng],{
-        icon:icon(data.type)
-    });
-
-    marker.bindPopup(`
-        <b>${data.message}</b><br>
-        ${data.type}<br>
-        ${new Date(data.time).toLocaleString()}
-    `);
-
-    markers.addLayer(marker);
-
-    // heatmap
-    heatPoints.push([data.lat,data.lng,1]);
-    heat.setLatLngs(heatPoints);
-
-    // limit size
-    if(markers.getLayers().length > 200){
-        markers.clearLayers();
-        heatPoints = [];
-        heat.setLatLngs([]);
-    }
+ws.onopen = () => {
+    console.log("✅ WebSocket connected");
+    statusBox.innerHTML = "🟢 WS CONNECTED";
 };
 
+ws.onmessage = (event) => {
+    console.log("📡 RAW:", event.data);
+
+    const data = JSON.parse(event.data);
+
+    const marker = L.marker([data.lat, data.lng]).addTo(map);
+
+    marker.bindPopup(`
+        <b>${data.type.toUpperCase()}</b><br>
+        ${data.message}<br>
+        <small>${data.time}</small>
+    `);
+
+    statusBox.innerHTML = "📡 Receiving data...";
+};
+
+ws.onerror = (err) => {
+    console.error("❌ WS error:", err);
+    statusBox.innerHTML = "❌ WS ERROR";
+};
+
+ws.onclose = () => {
+    statusBox.innerHTML = "🔴 DISCONNECTED";
+};
 </script>
 
 </body>

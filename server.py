@@ -1,127 +1,104 @@
+# server.py
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import asyncio
 import json
-import feedparser
-import requests
+import random
 from datetime import datetime
 
 from ml_model import extract_location, classify_event
-from db import save_event, get_recent_events
+from news_ingest import get_news
+from db import save_event
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 clients = []
-seen_titles = set()
 
-
-# ✅ SERVE FRONTEND (FIXES YOUR 404)
+# 🌍 Serve frontend
 @app.get("/")
-async def serve_map():
+async def home():
     return FileResponse("intel_map.html")
 
-
-# 🌍 Geocoding
-def get_coordinates(location):
-    try:
-        url = f"https://nominatim.openstreetmap.org/search?q={location}&format=json&limit=1"
-        res = requests.get(url, headers={"User-Agent": "intel-system"})
-        data = res.json()
-
-        if data:
-            return {
-                "lat": float(data[0]["lat"]),
-                "lng": float(data[0]["lon"])
-            }
-
-    except Exception as e:
-        print("Geo error:", e)
-
-    return None
-
-
-# 🔌 WebSocket
+# 🔌 WebSocket endpoint
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     clients.append(websocket)
-
     print("🟢 Client connected")
-
-    # 🔁 SEND OLD EVENTS (history)
-    for row in get_recent_events():
-        await websocket.send_text(json.dumps({
-            "lat": row[0],
-            "lng": row[1],
-            "message": row[2],
-            "type": row[3],
-            "time": row[4]
-        }))
 
     try:
         while True:
-            await asyncio.sleep(1)
-
+            await websocket.receive_text()
     except WebSocketDisconnect:
         clients.remove(websocket)
         print("🔴 Client disconnected")
 
 
-# 📰 News ingestion loop
+# 🎯 Fake coordinates fallback
+def fake_coordinates():
+    return {
+        "lat": random.uniform(-60, 70),
+        "lng": random.uniform(-180, 180)
+    }
+
+
+# 🚀 MAIN LOOP
 async def news_loop():
     while True:
-        feed = feedparser.parse("https://rss.cnn.com/rss/edition.rss")
+        print("🔄 Fetching news...")
 
-        for entry in feed.entries[:10]:
+        # 🔥 TEST EVENT (ALWAYS SEND)
+        test_event = {
+            "lat": 18.4655,
+            "lng": -66.1057,
+            "message": "TEST EVENT: Puerto Rico Live",
+            "type": "critical",
+            "time": datetime.utcnow().isoformat()
+        }
 
-            if entry.title in seen_titles:
-                continue
+        save_event(test_event)
 
-            seen_titles.add(entry.title)
+        for client in clients:
+            try:
+                await client.send_text(json.dumps(test_event))
+            except:
+                pass
 
-            location = extract_location(entry.title)
+        # 📰 REAL NEWS EVENTS
+        news_items = get_news()
 
-            if not location:
-                continue
+        for article in news_items[:5]:
+            location = extract_location(article["title"])
 
-            coords = get_coordinates(location)
-
-            if not coords:
-                continue
+            if location:
+                lat, lng = location
+            else:
+                coords = fake_coordinates()
+                lat, lng = coords["lat"], coords["lng"]
 
             event = {
-                "lat": coords["lat"],
-                "lng": coords["lng"],
-                "message": entry.title,
-                "type": classify_event(entry.title),
+                "lat": lat,
+                "lng": lng,
+                "message": article["title"],
+                "type": classify_event(article["title"]),
                 "time": datetime.utcnow().isoformat()
             }
 
             print("EVENT:", event["message"])
 
-            # ✅ SAVE TO DB
             save_event(event)
 
-            # ✅ SEND TO CLIENTS
             for client in clients:
                 try:
                     await client.send_text(json.dumps(event))
                 except:
                     pass
 
-        await asyncio.sleep(20)
+        await asyncio.sleep(30)
 
 
-# 🚀 Start background task
+# ▶️ START BACKGROUND TASK
 @app.on_event("startup")
-async def start():
+async def startup_event():
     asyncio.create_task(news_loop())
