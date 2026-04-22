@@ -35,6 +35,7 @@
     overflow: hidden;
   }
 
+  /* ── HEADER ── */
   header {
     display: flex;
     align-items: center;
@@ -51,175 +52,273 @@
   .header-right { display: flex; align-items: center; gap: 24px; font-family: 'Share Tech Mono', monospace; font-size: 11px; }
   .live-badge { display: flex; align-items: center; gap: 6px; color: var(--accent2); font-size: 11px; }
   .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
-  .live-dot.red    { background: var(--crit); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+  .live-dot.red { background: var(--crit); animation: none; }
   .live-dot.yellow { background: var(--warn); animation: none; }
   #clock { color: var(--text); letter-spacing: 2px; font-size: 13px; }
   .stat { text-align: center; }
   .stat .val { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--accent); }
   .stat .lbl { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
 
+  /* ── LAYOUT ── */
   .main { display: grid; grid-template-columns: 1fr 320px; flex: 1; overflow: hidden; }
   #map { width: 100%; height: 100%; }
 
+  /* ── SIDE PANEL ── */
   .side-panel { background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
   .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .panel-title { font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 3px; color: var(--accent); }
   #event-count { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
 
   .filters { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; flex-shrink: 0; }
-  .filter-btn {
-    flex: 1; padding: 5px 0;
-    border: 1px solid var(--border); background: transparent;
-    border-radius: 3px; font-family: 'Share Tech Mono', monospace;
-    font-size: 10px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
-  }
-  .filter-btn.all  { color: var(--text); }
-  .filter-btn.crit { color: var(--crit); }
-  .filter-btn.warn { color: var(--warn); }
-  .filter-btn.info { color: var(--info); }
-  .filter-btn.active { background: rgba(0,200,255,0.1); border-color: var(--accent); color: var(--accent); }
+  .filter-btn { flex:1; padding:5px 0; border:1px solid var(--border); background:transparent; border-radius:3px; font-family:'Share Tech Mono',monospace; font-size:10px; cursor:pointer; transition:all .2s; letter-spacing:1px; }
+  .filter-btn.all{color:var(--text)} .filter-btn.crit{color:var(--crit)} .filter-btn.warn{color:var(--warn)} .filter-btn.info{color:var(--info)}
+  .filter-btn.active{background:rgba(0,200,255,.1);border-color:var(--accent);color:var(--accent)}
 
-  /* ── VIEW MODE TOGGLE BUTTONS ── */
-  .view-toggles {
+  .view-toggles { display:flex; gap:6px; padding:8px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .view-btn { flex:1; padding:6px 0; border:1px solid var(--border); background:transparent; border-radius:3px; font-family:'Share Tech Mono',monospace; font-size:9px; cursor:pointer; transition:all .2s; letter-spacing:1px; color:var(--dim); }
+  .view-btn.active{background:rgba(0,200,255,.1);border-color:var(--accent);color:var(--accent)}
+  .view-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+  .heatmap-legend { display:none; padding:8px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .heatmap-legend.visible{display:block}
+  .legend-bar { height:8px; border-radius:4px; background:linear-gradient(to right,#00f,#0ff,#0f0,#ff0,#f00); margin-bottom:4px; }
+  .legend-labels { display:flex; justify-content:space-between; font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--dim); }
+
+  #event-feed { flex:1; overflow-y:auto; padding:8px; }
+  #event-feed::-webkit-scrollbar{width:4px} #event-feed::-webkit-scrollbar-track{background:transparent} #event-feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+  .event-card { padding:10px 12px; margin-bottom:6px; border-radius:4px; border-left:3px solid var(--dim); background:rgba(255,255,255,.02); cursor:pointer; transition:background .15s; animation:slideIn .3s ease; }
+  .event-card:hover{background:rgba(0,200,255,.05)}
+  @keyframes slideIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+  .event-card.critical{border-left-color:var(--crit)} .event-card.warning{border-left-color:var(--warn)} .event-card.info{border-left-color:var(--info)}
+  .event-type{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+  .event-card.critical .event-type{color:var(--crit)} .event-card.warning .event-type{color:var(--warn)} .event-card.info .event-type{color:var(--info)}
+  .event-msg{font-size:12px;color:var(--text);line-height:1.4;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .event-time{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim)}
+
+  .status-bar-bottom { padding:8px 16px; border-top:1px solid var(--border); font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); flex-shrink:0; display:flex; justify-content:space-between; }
+
+  /* ── TIMELINE SLIDER ── */
+  .timeline-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 320px;
+    height: 70px;
+    background: rgba(7, 13, 24, 0.92);
+    border-top: 1px solid var(--border);
+    padding: 10px 20px;
     display: flex;
-    gap: 6px;
-    padding: 8px 16px;
-    border-bottom: 1px solid var(--border);
+    flex-direction: column;
+    gap: 8px;
+    z-index: 900;
+    backdrop-filter: blur(8px);
+    transition: opacity 0.3s;
+  }
+  .timeline-bar.hidden { opacity: 0; pointer-events: none; }
+
+  .timeline-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tl-btn {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: 3px;
+    color: var(--accent);
+    font-size: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
     flex-shrink: 0;
   }
-  .view-btn {
-    flex: 1; padding: 6px 0;
-    border: 1px solid var(--border); background: transparent;
-    border-radius: 3px; font-family: 'Share Tech Mono', monospace;
-    font-size: 9px; cursor: pointer; transition: all 0.2s;
-    letter-spacing: 1px; color: var(--dim);
-  }
-  .view-btn.active { background: rgba(0,200,255,0.1); border-color: var(--accent); color: var(--accent); }
-  .view-btn:hover  { border-color: var(--accent); color: var(--accent); }
+  .tl-btn:hover { background: rgba(0,200,255,0.1); border-color: var(--accent); }
+  .tl-btn.active { background: rgba(0,200,255,0.2); border-color: var(--accent); }
 
-  #event-feed { flex: 1; overflow-y: auto; padding: 8px; }
-  #event-feed::-webkit-scrollbar { width: 4px; }
-  #event-feed::-webkit-scrollbar-track { background: transparent; }
-  #event-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  .event-card {
-    padding: 10px 12px; margin-bottom: 6px;
-    border-radius: 4px; border-left: 3px solid var(--dim);
-    background: rgba(255,255,255,0.02);
-    cursor: pointer; transition: background 0.15s; animation: slideIn 0.3s ease;
-  }
-  .event-card:hover { background: rgba(0,200,255,0.05); }
-  @keyframes slideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
-  .event-card.critical { border-left-color: var(--crit); }
-  .event-card.warning  { border-left-color: var(--warn); }
-  .event-card.info     { border-left-color: var(--info); }
-  .event-type { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
-  .event-card.critical .event-type { color: var(--crit); }
-  .event-card.warning  .event-type { color: var(--warn); }
-  .event-card.info     .event-type { color: var(--info); }
-  .event-msg { font-size: 12px; color: var(--text); line-height: 1.4; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .event-time { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); }
-
-  .status-bar-bottom {
-    padding: 8px 16px; border-top: 1px solid var(--border);
-    font-family: 'Share Tech Mono', monospace; font-size: 10px;
-    color: var(--dim); flex-shrink: 0; display: flex; justify-content: space-between;
+  .tl-time-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    min-width: 140px;
+    letter-spacing: 1px;
   }
 
-  /* Heatmap legend */
-  .heatmap-legend {
-    display: none;
-    padding: 8px 16px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
+  .tl-speed {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: transparent;
+    transition: all 0.2s;
   }
-  .heatmap-legend.visible { display: block; }
-  .legend-bar {
-    height: 8px;
-    border-radius: 4px;
-    background: linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000);
-    margin-bottom: 4px;
+  .tl-speed:hover { color: var(--accent); border-color: var(--accent); }
+
+  .tl-event-count {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    margin-left: auto;
   }
-  .legend-labels {
+
+  .tl-close {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 0 4px;
+  }
+  .tl-close:hover { color: var(--crit); }
+
+  .tl-slider-wrap {
+    position: relative;
+    flex: 1;
     display: flex;
-    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tl-range {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    position: relative;
+  }
+  .tl-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(0,200,255,0.6);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .tl-range::-webkit-slider-thumb:hover { transform: scale(1.3); }
+  .tl-range::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+  }
+
+  /* Progress fill on slider */
+  .tl-range {
+    background: linear-gradient(to right, var(--accent) 0%, var(--border) 0%);
+  }
+
+  .tl-label-start, .tl-label-end {
     font-family: 'Share Tech Mono', monospace;
     font-size: 9px;
     color: var(--dim);
+    white-space: nowrap;
   }
 
-  /* Leaflet popup */
-  .leaflet-popup-content-wrapper { background: #070d18; border: 1px solid #0d2238; border-radius: 4px; color: #c8dff0; font-family: 'IBM Plex Sans', sans-serif; }
-  .leaflet-popup-tip { background: #070d18; }
-  .leaflet-popup-content { margin: 12px 16px; font-size: 13px; line-height: 1.6; }
-  .popup-type { font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 2px; margin-bottom: 6px; }
-  .popup-type.critical { color: #ff3e3e; }
-  .popup-type.warning  { color: #ffb800; }
-  .popup-type.info     { color: #4da6ff; }
-  .popup-time { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #3a5a78; margin-top: 6px; }
+  /* Toggle timeline button */
+  .timeline-toggle {
+    position: absolute;
+    bottom: 75px;
+    left: 20px;
+    z-index: 901;
+    background: rgba(7,13,24,0.9);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 6px 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    backdrop-filter: blur(8px);
+  }
+  .timeline-toggle:hover { background: rgba(0,200,255,0.1); border-color: var(--accent); }
+  .timeline-toggle.down { bottom: 5px; }
 
-  /* Cluster styles */
-  .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background-clip: padding-box; border-radius: 50%; }
-  .marker-cluster-small  { background-color: rgba(77,166,255,0.3); }
-  .marker-cluster-medium { background-color: rgba(255,184,0,0.3);  }
-  .marker-cluster-large  { background-color: rgba(255,62,62,0.3);  }
-  .marker-cluster-small  div { background-color: rgba(77,166,255,0.7); }
-  .marker-cluster-medium div { background-color: rgba(255,184,0,0.7);  }
-  .marker-cluster-large  div { background-color: rgba(255,62,62,0.7);  }
-  .marker-cluster div { width: 30px; height: 30px; margin-left: 5px; margin-top: 5px; text-align: center; border-radius: 15px; font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700; color: #fff; line-height: 30px; }
-  .marker-cluster { border: 2px solid rgba(255,255,255,0.2); }
+  /* Leaflet popup */
+  .leaflet-popup-content-wrapper{background:#070d18;border:1px solid #0d2238;border-radius:4px;color:#c8dff0;font-family:'IBM Plex Sans',sans-serif}
+  .leaflet-popup-tip{background:#070d18}
+  .leaflet-popup-content{margin:12px 16px;font-size:13px;line-height:1.6}
+  .popup-type{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;margin-bottom:6px}
+  .popup-type.critical{color:#ff3e3e} .popup-type.warning{color:#ffb800} .popup-type.info{color:#4da6ff}
+  .popup-time{font-family:'Share Tech Mono',monospace;font-size:10px;color:#3a5a78;margin-top:6px}
+
+  /* Cluster */
+  .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-clip:padding-box;border-radius:50%}
+  .marker-cluster-small{background-color:rgba(77,166,255,.3)} .marker-cluster-medium{background-color:rgba(255,184,0,.3)} .marker-cluster-large{background-color:rgba(255,62,62,.3)}
+  .marker-cluster-small div{background-color:rgba(77,166,255,.7)} .marker-cluster-medium div{background-color:rgba(255,184,0,.7)} .marker-cluster-large div{background-color:rgba(255,62,62,.7)}
+  .marker-cluster div{width:30px;height:30px;margin-left:5px;margin-top:5px;text-align:center;border-radius:15px;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:#fff;line-height:30px}
+  .marker-cluster{border:2px solid rgba(255,255,255,.2)}
 </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <span class="logo">SENTINEL<span>// GLOBAL INTEL MONITOR</span></span>
-  </div>
+  <div><span class="logo">SENTINEL<span>// GLOBAL INTEL MONITOR</span></span></div>
   <div class="header-right">
     <div class="stat"><div class="val" id="stat-total">0</div><div class="lbl">EVENTS</div></div>
     <div class="stat"><div class="val" id="stat-crit" style="color:var(--crit)">0</div><div class="lbl">CRITICAL</div></div>
     <div class="stat"><div class="val" id="stat-warn" style="color:var(--warn)">0</div><div class="lbl">WARNING</div></div>
-    <div class="live-badge">
-      <div class="live-dot" id="ws-dot"></div>
-      <span id="ws-status">CONNECTING</span>
-    </div>
+    <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">CONNECTING</span></div>
     <div id="clock">--:--:--</div>
   </div>
 </header>
 
-<div class="main">
+<div class="main" style="position:relative">
   <div id="map"></div>
+
+  <!-- Timeline slider -->
+  <div class="timeline-bar hidden" id="timeline-bar">
+    <div class="timeline-controls">
+      <button class="tl-btn" id="tl-play" title="Play/Pause">▶</button>
+      <button class="tl-btn" id="tl-reset" title="Reset">↺</button>
+      <div class="tl-time-label" id="tl-time">--:-- UTC</div>
+      <button class="tl-speed" id="tl-speed" title="Playback speed">1×</button>
+      <div class="tl-event-count" id="tl-event-count">Loading...</div>
+      <button class="tl-close" id="tl-close" title="Close timeline">✕ CLOSE</button>
+    </div>
+    <div class="tl-slider-wrap">
+      <span class="tl-label-start" id="tl-start">--:--</span>
+      <input type="range" class="tl-range" id="tl-range" min="0" max="100" value="0">
+      <span class="tl-label-end" id="tl-end">NOW</span>
+    </div>
+  </div>
+
+  <!-- Toggle button -->
+  <button class="timeline-toggle down" id="timeline-toggle">⏱ TIMELINE</button>
 
   <div class="side-panel">
     <div class="panel-header">
       <span class="panel-title">LIVE INTEL FEED</span>
       <span id="event-count">0 events</span>
     </div>
-
     <div class="filters">
       <button class="filter-btn all active" onclick="setFilter('all')">ALL</button>
       <button class="filter-btn crit" onclick="setFilter('critical')">CRIT</button>
       <button class="filter-btn warn" onclick="setFilter('warning')">WARN</button>
       <button class="filter-btn info" onclick="setFilter('info')">INFO</button>
     </div>
-
-    <!-- View mode buttons -->
     <div class="view-toggles">
       <button class="view-btn active" id="btn-markers"  onclick="setView('markers')">⬤ MARKERS</button>
       <button class="view-btn"        id="btn-cluster"  onclick="setView('cluster')">⬡ CLUSTER</button>
       <button class="view-btn"        id="btn-heatmap"  onclick="setView('heatmap')">◈ HEATMAP</button>
     </div>
-
-    <!-- Heatmap legend (shown only in heatmap mode) -->
     <div class="heatmap-legend" id="heatmap-legend">
       <div class="legend-bar"></div>
       <div class="legend-labels"><span>LOW</span><span>MEDIUM</span><span>HIGH</span></div>
     </div>
-
     <div id="event-feed"></div>
-
     <div class="status-bar-bottom">
       <span id="last-update">No data yet</span>
       <span id="feed-count">0 in feed</span>
@@ -231,256 +330,267 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
-// ── MAP SETUP ────────────────────────────────────────────────
+// ── MAP ──────────────────────────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: false }).setView([20, 10], 2);
-
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '© OpenStreetMap © CARTO',
-  subdomains: 'abcd',
-  maxZoom: 19
+  attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 19
 }).addTo(map);
-
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-// ── LAYERS ───────────────────────────────────────────────────
+// ── LAYERS ───────────────────────────────────────────────────────────────────
 const clusterGroup = L.markerClusterGroup({
-  maxClusterRadius: 60,
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: false,
-  zoomToBoundsOnClick: true,
+  maxClusterRadius: 60, spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false, zoomToBoundsOnClick: true,
   iconCreateFunction(cluster) {
-    const count = cluster.getChildCount();
-    const size  = count >= 20 ? 'large' : count >= 8 ? 'medium' : 'small';
-    return L.divIcon({
-      html: `<div><span>${count}</span></div>`,
-      className: `marker-cluster marker-cluster-${size}`,
-      iconSize: L.point(40, 40)
-    });
+    const n = cluster.getChildCount();
+    const sz = n >= 20 ? 'large' : n >= 8 ? 'medium' : 'small';
+    return L.divIcon({ html: `<div><span>${n}</span></div>`, className: `marker-cluster marker-cluster-${sz}`, iconSize: L.point(40,40) });
   }
 });
-
-// Plain layer group for unclustered markers
 const markerGroup = L.layerGroup().addTo(map);
+const heatLayer = L.heatLayer([], { radius:35, blur:25, maxZoom:10, gradient:{0:'#00f',0.3:'#0ff',0.5:'#0f0',0.7:'#ff0',1:'#f00'} });
 
-// Heatmap layer (starts empty)
-const heatLayer = L.heatLayer([], {
-  radius: 35,
-  blur: 25,
-  maxZoom: 10,
-  gradient: {
-    0.0: '#0000ff',
-    0.3: '#00ffff',
-    0.5: '#00ff00',
-    0.7: '#ffff00',
-    1.0: '#ff0000'
-  }
-});
-
-// ── STATE ────────────────────────────────────────────────────
-let currentView   = 'markers'; // 'markers' | 'cluster' | 'heatmap'
-let allEvents     = [];
-let allMarkers    = []; // { marker, event }
-let heatPoints    = []; // [lat, lng, intensity]
+// ── STATE ────────────────────────────────────────────────────────────────────
+let currentView = 'markers';
+let allEvents   = [];
+let allMarkers  = [];
+let heatPoints  = [];
 let currentFilter = 'all';
-let stats = { total: 0, critical: 0, warning: 0, info: 0 };
+let stats = { total:0, critical:0, warning:0, info:0 };
+const COLORS = { critical:'#ff3e3e', warning:'#ffb800', info:'#4da6ff' };
+const RADII  = { critical:10, warning:8, info:6 };
+const HEAT_I = { critical:1.0, warning:0.6, info:0.3 };
 
-const COLORS   = { critical: '#ff3e3e', warning: '#ffb800', info: '#4da6ff' };
-const RADII    = { critical: 10, warning: 8, info: 6 };
-const HEAT_INT = { critical: 1.0, warning: 0.6, info: 0.3 };
+// ── TIMELINE STATE ───────────────────────────────────────────────────────────
+let timelineEvents  = [];   // All historical events sorted by time
+let timelineVisible = false;
+let tlPlaying       = false;
+let tlIndex         = 0;    // Current position in timeline
+let tlTimer         = null;
+let tlSpeed         = 1;    // Playback speed multiplier
+const SPEEDS        = [0.5, 1, 2, 5, 10];
+let tlSpeedIdx      = 1;
+let tlMarkers       = [];   // Markers added during timeline playback
 
-// ── VIEW SWITCHER ─────────────────────────────────────────────
+// ── VIEW SWITCHER ────────────────────────────────────────────────────────────
 function setView(mode) {
   currentView = mode;
-
-  // Update button states
-  ['markers','cluster','heatmap'].forEach(m => {
-    document.getElementById(`btn-${m}`).classList.toggle('active', m === mode);
-  });
-
-  // Show/hide heatmap legend
-  document.getElementById('heatmap-legend').classList.toggle('visible', mode === 'heatmap');
-
-  // Remove all layers
-  map.removeLayer(markerGroup);
-  map.removeLayer(clusterGroup);
-  map.removeLayer(heatLayer);
-
-  if (mode === 'markers') {
-    // Rebuild plain marker layer
-    markerGroup.clearLayers();
-    allMarkers.forEach(({ marker }) => markerGroup.addLayer(marker));
-    map.addLayer(markerGroup);
-
-  } else if (mode === 'cluster') {
-    clusterGroup.clearLayers();
-    allMarkers.forEach(({ marker }) => clusterGroup.addLayer(marker));
-    map.addLayer(clusterGroup);
-
-  } else if (mode === 'heatmap') {
-    // Rebuild heat points from all events
-    heatPoints = allEvents.map(e => [e.lat, e.lng, HEAT_INT[e.type] || 0.3]);
-    heatLayer.setLatLngs(heatPoints);
-    map.addLayer(heatLayer);
-  }
+  ['markers','cluster','heatmap'].forEach(m => document.getElementById(`btn-${m}`).classList.toggle('active', m===mode));
+  document.getElementById('heatmap-legend').classList.toggle('visible', mode==='heatmap');
+  map.removeLayer(markerGroup); map.removeLayer(clusterGroup); map.removeLayer(heatLayer);
+  if (mode==='markers') { markerGroup.clearLayers(); allMarkers.forEach(({marker})=>markerGroup.addLayer(marker)); map.addLayer(markerGroup); }
+  else if (mode==='cluster') { clusterGroup.clearLayers(); allMarkers.forEach(({marker})=>clusterGroup.addLayer(marker)); map.addLayer(clusterGroup); }
+  else { heatPoints = allEvents.map(e=>[e.lat,e.lng,HEAT_I[e.type]||0.3]); heatLayer.setLatLngs(heatPoints); map.addLayer(heatLayer); }
 }
 
-// ── MAKE MARKER ───────────────────────────────────────────────
-function makeMarker(event) {
-  const color  = COLORS[event.type] || COLORS.info;
-  const radius = RADII[event.type]  || 6;
-
-  const marker = L.circleMarker([event.lat, event.lng], {
-    radius, color, fillColor: color,
-    fillOpacity: 0.75, weight: 1.5, opacity: 0.9
-  });
-
-  const typeLabel = (event.type || 'info').toUpperCase();
-  const time = event.time ? new Date(event.time).toUTCString().slice(0, 25) : '';
-
-  marker.bindPopup(`
-    <div class="popup-type ${event.type}">${typeLabel}</div>
-    <div>${event.message}</div>
-    <div class="popup-time">${time}</div>
-  `);
-
-  // Add to the correct layer based on current view
-  if (currentView === 'markers') {
-    markerGroup.addLayer(marker);
-  } else if (currentView === 'cluster') {
-    clusterGroup.addLayer(marker);
+// ── MAKE MARKER ──────────────────────────────────────────────────────────────
+function makeMarker(event, addToLayer=true) {
+  const color=COLORS[event.type]||COLORS.info, radius=RADII[event.type]||6;
+  const marker = L.circleMarker([event.lat,event.lng],{radius,color,fillColor:color,fillOpacity:.75,weight:1.5,opacity:.9});
+  const time = event.time ? new Date(event.time).toUTCString().slice(0,25) : '';
+  marker.bindPopup(`<div class="popup-type ${event.type}">${(event.type||'info').toUpperCase()}</div><div>${event.message}</div><div class="popup-time">${time}</div>`);
+  if (addToLayer) {
+    if (currentView==='markers') markerGroup.addLayer(marker);
+    else if (currentView==='cluster') clusterGroup.addLayer(marker);
+    if (event.type==='critical') {
+      const pulse = L.circleMarker([event.lat,event.lng],{radius,color,fillColor:color,fillOpacity:0,weight:2,opacity:.6}).addTo(map);
+      let r=radius,growing=true;
+      const anim=setInterval(()=>{ r=growing?r+.4:r-.4; if(r>radius+8)growing=false; if(r<radius){clearInterval(anim);pulse.remove();return;} pulse.setRadius(r); },50);
+    }
   }
-  // Heatmap: don't add marker, just add heat point
-
-  // Pulse for critical
-  if (event.type === 'critical') {
-    const pulse = L.circleMarker([event.lat, event.lng], {
-      radius, color, fillColor: color, fillOpacity: 0, weight: 2, opacity: 0.6
-    }).addTo(map);
-    let r = radius, growing = true;
-    const anim = setInterval(() => {
-      r = growing ? r + 0.4 : r - 0.4;
-      if (r > radius + 8) growing = false;
-      if (r < radius) { clearInterval(anim); pulse.remove(); return; }
-      pulse.setRadius(r);
-    }, 50);
-  }
-
   return marker;
 }
 
-// ── EVENT FEED CARD ──────────────────────────────────────────
+// ── EVENT FEED ───────────────────────────────────────────────────────────────
 function addEventCard(event, marker) {
-  const feed = document.getElementById('event-feed');
-  const card = document.createElement('div');
-  card.className = `event-card ${event.type}`;
-  card.dataset.type = event.type;
-
-  const time = event.time ? new Date(event.time).toLocaleTimeString('en-US', { hour12: false }) : '';
-  card.innerHTML = `
-    <div class="event-type">${(event.type || 'info').toUpperCase()}</div>
-    <div class="event-msg">${event.message}</div>
-    <div class="event-time">${time} UTC</div>
-  `;
-
-  card.onclick = () => {
-    map.setView([event.lat, event.lng], 6, { animate: true });
-    if (currentView === 'cluster') {
-      clusterGroup.zoomToShowLayer(marker, () => marker.openPopup());
-    } else if (currentView === 'markers') {
-      marker.openPopup();
-    }
-    // In heatmap mode just fly to location
-  };
-
-  feed.insertBefore(card, feed.firstChild);
-
-  if (currentFilter !== 'all' && event.type !== currentFilter) {
-    card.style.display = 'none';
-  }
-
-  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
-
-  document.getElementById('feed-count').textContent =
-    feed.querySelectorAll('.event-card:not([style*="none"])').length + ' in feed';
+  const feed=document.getElementById('event-feed');
+  const card=document.createElement('div');
+  card.className=`event-card ${event.type}`; card.dataset.type=event.type;
+  const time=event.time?new Date(event.time).toLocaleTimeString('en-US',{hour12:false}):'';
+  card.innerHTML=`<div class="event-type">${(event.type||'info').toUpperCase()}</div><div class="event-msg">${event.message}</div><div class="event-time">${time} UTC</div>`;
+  card.onclick=()=>{ map.setView([event.lat,event.lng],6,{animate:true}); if(currentView==='cluster')clusterGroup.zoomToShowLayer(marker,()=>marker.openPopup()); else marker.openPopup(); };
+  feed.insertBefore(card,feed.firstChild);
+  if(currentFilter!=='all'&&event.type!==currentFilter) card.style.display='none';
+  while(feed.children.length>200) feed.removeChild(feed.lastChild);
+  document.getElementById('feed-count').textContent=feed.querySelectorAll('.event-card:not([style*="none"])').length+' in feed';
 }
 
-// ── FILTER ───────────────────────────────────────────────────
 function setFilter(type) {
-  currentFilter = type;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.filter-btn.${type === 'all' ? 'all' : type === 'critical' ? 'crit' : type === 'warning' ? 'warn' : 'info'}`).classList.add('active');
-  document.querySelectorAll('.event-card').forEach(card => {
-    card.style.display = (type === 'all' || card.dataset.type === type) ? '' : 'none';
-  });
-  const visible = document.querySelectorAll('.event-card:not([style*="none"])').length;
-  document.getElementById('feed-count').textContent = visible + ' in feed';
+  currentFilter=type;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`.filter-btn.${type==='all'?'all':type==='critical'?'crit':type==='warning'?'warn':'info'}`).classList.add('active');
+  document.querySelectorAll('.event-card').forEach(c=>{ c.style.display=(type==='all'||c.dataset.type===type)?'':'none'; });
+  document.getElementById('feed-count').textContent=document.querySelectorAll('.event-card:not([style*="none"])').length+' in feed';
 }
 
-// ── STATS ────────────────────────────────────────────────────
 function updateStats(type) {
-  stats.total++;
-  if (type === 'critical') stats.critical++;
-  else if (type === 'warning') stats.warning++;
-  else stats.info++;
-  document.getElementById('stat-total').textContent = stats.total;
-  document.getElementById('stat-crit').textContent  = stats.critical;
-  document.getElementById('stat-warn').textContent  = stats.warning;
-  document.getElementById('event-count').textContent = stats.total + ' events';
-  document.getElementById('last-update').textContent =
-    'Last: ' + new Date().toLocaleTimeString('en-US', { hour12: false });
+  stats.total++; if(type==='critical')stats.critical++; else if(type==='warning')stats.warning++; else stats.info++;
+  document.getElementById('stat-total').textContent=stats.total;
+  document.getElementById('stat-crit').textContent=stats.critical;
+  document.getElementById('stat-warn').textContent=stats.warning;
+  document.getElementById('event-count').textContent=stats.total+' events';
+  document.getElementById('last-update').textContent='Last: '+new Date().toLocaleTimeString('en-US',{hour12:false});
 }
 
-// ── PROCESS INCOMING EVENT ───────────────────────────────────
 function processEvent(data) {
-  if (!data.lat || !data.lng || data.ping) return;
+  if(!data.lat||!data.lng||data.ping) return;
+  const marker=makeMarker(data);
+  allMarkers.push({marker,event:data}); allEvents.push(data);
+  if(currentView==='heatmap'){heatPoints.push([data.lat,data.lng,HEAT_I[data.type]||.3]);heatLayer.setLatLngs(heatPoints);}
+  addEventCard(data,marker); updateStats(data.type);
+}
 
-  const marker = makeMarker(data);
-  allMarkers.push({ marker, event: data });
-  allEvents.push(data);
+// ── TIMELINE ─────────────────────────────────────────────────────────────────
+function toggleTimeline() {
+  timelineVisible = !timelineVisible;
+  const bar = document.getElementById('timeline-bar');
+  const btn = document.getElementById('timeline-toggle');
+  bar.classList.toggle('hidden', !timelineVisible);
+  btn.classList.toggle('down', !timelineVisible);
+  btn.textContent = timelineVisible ? '✕ TIMELINE' : '⏱ TIMELINE';
+  if (timelineVisible && timelineEvents.length === 0) loadTimeline();
+}
 
-  // Update heatmap live if in heatmap mode
-  if (currentView === 'heatmap') {
-    heatPoints.push([data.lat, data.lng, HEAT_INT[data.type] || 0.3]);
-    heatLayer.setLatLngs(heatPoints);
+async function loadTimeline() {
+  document.getElementById('tl-event-count').textContent = 'Loading...';
+  try {
+    const res = await fetch('/api/events?hours=24');
+    const data = await res.json();
+    timelineEvents = data.events;
+
+    if (timelineEvents.length === 0) {
+      document.getElementById('tl-event-count').textContent = 'No historical data';
+      return;
+    }
+
+    // Set slider range
+    const range = document.getElementById('tl-range');
+    range.max = timelineEvents.length - 1;
+    range.value = 0;
+    tlIndex = 0;
+
+    // Set time labels
+    const first = new Date(timelineEvents[0].time);
+    const last  = new Date(timelineEvents[timelineEvents.length-1].time);
+    document.getElementById('tl-start').textContent = first.toUTCString().slice(17,22)+' UTC';
+    document.getElementById('tl-end').textContent   = last.toUTCString().slice(17,22)+' UTC';
+    document.getElementById('tl-event-count').textContent = `${timelineEvents.length} events / 24h`;
+    updateTimeLabel(0);
+
+  } catch(e) {
+    document.getElementById('tl-event-count').textContent = 'Failed to load';
+    console.error('Timeline load error:', e);
   }
-
-  addEventCard(data, marker);
-  updateStats(data.type);
 }
 
-// ── WEBSOCKET ────────────────────────────────────────────────
+function updateTimeLabel(idx) {
+  if (!timelineEvents[idx]) return;
+  const t = new Date(timelineEvents[idx].time);
+  document.getElementById('tl-time').textContent = t.toUTCString().slice(5,22)+' UTC';
+
+  // Update slider fill color
+  const range = document.getElementById('tl-range');
+  const pct = (idx / Math.max(1, timelineEvents.length-1)) * 100;
+  range.style.background = `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
+}
+
+function tlShowEventsUpTo(idx) {
+  // Clear previous timeline markers
+  tlMarkers.forEach(m => map.removeLayer(m));
+  tlMarkers = [];
+
+  // Show all events up to this index
+  for (let i = 0; i <= idx && i < timelineEvents.length; i++) {
+    const e = timelineEvents[i];
+    if (!e.lat || !e.lng) continue;
+    const marker = makeMarker(e, false);
+    marker.addTo(map);
+    tlMarkers.push(marker);
+  }
+}
+
+function tlPlay() {
+  if (tlIndex >= timelineEvents.length - 1) tlReset();
+  tlPlaying = true;
+  document.getElementById('tl-play').textContent = '⏸';
+  document.getElementById('tl-play').classList.add('active');
+
+  const interval = Math.max(50, 200 / tlSpeed);
+  tlTimer = setInterval(() => {
+    if (tlIndex >= timelineEvents.length - 1) {
+      tlPause(); return;
+    }
+    tlIndex++;
+    document.getElementById('tl-range').value = tlIndex;
+    updateTimeLabel(tlIndex);
+    tlShowEventsUpTo(tlIndex);
+  }, interval);
+}
+
+function tlPause() {
+  tlPlaying = false;
+  clearInterval(tlTimer);
+  document.getElementById('tl-play').textContent = '▶';
+  document.getElementById('tl-play').classList.remove('active');
+}
+
+function tlReset() {
+  tlPause();
+  tlIndex = 0;
+  document.getElementById('tl-range').value = 0;
+  updateTimeLabel(0);
+  tlShowEventsUpTo(0);
+}
+
+function tlClose() {
+  tlPause();
+  tlMarkers.forEach(m => map.removeLayer(m));
+  tlMarkers = [];
+  timelineVisible = false;
+  document.getElementById('timeline-bar').classList.add('hidden');
+  document.getElementById('timeline-toggle').classList.add('down');
+  document.getElementById('timeline-toggle').textContent = '⏱ TIMELINE';
+}
+
+// Timeline event listeners
+document.getElementById('timeline-toggle').addEventListener('click', toggleTimeline);
+document.getElementById('tl-close').addEventListener('click', tlClose);
+
+document.getElementById('tl-play').addEventListener('click', () => {
+  if (tlPlaying) tlPause(); else tlPlay();
+});
+
+document.getElementById('tl-reset').addEventListener('click', tlReset);
+
+document.getElementById('tl-range').addEventListener('input', (e) => {
+  tlPause();
+  tlIndex = parseInt(e.target.value);
+  updateTimeLabel(tlIndex);
+  tlShowEventsUpTo(tlIndex);
+});
+
+document.getElementById('tl-speed').addEventListener('click', () => {
+  tlSpeedIdx = (tlSpeedIdx + 1) % SPEEDS.length;
+  tlSpeed = SPEEDS[tlSpeedIdx];
+  document.getElementById('tl-speed').textContent = `${tlSpeed}×`;
+  if (tlPlaying) { tlPause(); tlPlay(); }
+});
+
+// ── WEBSOCKET ────────────────────────────────────────────────────────────────
 let ws, reconnectTimer;
-
 function connect() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const proto = location.protocol==='https:'?'wss':'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws`);
-  const dot    = document.getElementById('ws-dot');
-  const status = document.getElementById('ws-status');
-
-  ws.onopen = () => {
-    dot.className = 'live-dot';
-    status.textContent = 'LIVE';
-    clearTimeout(reconnectTimer);
-  };
-  ws.onmessage = (e) => {
-    try { processEvent(JSON.parse(e.data)); }
-    catch (err) { console.warn('Bad message:', e.data); }
-  };
-  ws.onerror = () => { dot.className = 'live-dot red'; status.textContent = 'ERROR'; };
-  ws.onclose = () => {
-    dot.className = 'live-dot yellow';
-    status.textContent = 'RECONNECTING';
-    reconnectTimer = setTimeout(connect, 5000);
-  };
+  const dot=document.getElementById('ws-dot'), status=document.getElementById('ws-status');
+  ws.onopen=()=>{ dot.className='live-dot'; status.textContent='LIVE'; clearTimeout(reconnectTimer); };
+  ws.onmessage=(e)=>{ try{ processEvent(JSON.parse(e.data)); }catch(err){} };
+  ws.onerror=()=>{ dot.className='live-dot red'; status.textContent='ERROR'; };
+  ws.onclose=()=>{ dot.className='live-dot yellow'; status.textContent='RECONNECTING'; reconnectTimer=setTimeout(connect,5000); };
 }
-
 connect();
 
-// ── CLOCK ────────────────────────────────────────────────────
-setInterval(() => {
-  document.getElementById('clock').textContent =
-    new Date().toUTCString().slice(17, 25) + ' UTC';
-}, 1000);
+// ── CLOCK ────────────────────────────────────────────────────────────────────
+setInterval(()=>{ document.getElementById('clock').textContent=new Date().toUTCString().slice(17,25)+' UTC'; },1000);
 </script>
 </body>
 </html>

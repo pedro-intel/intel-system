@@ -1,7 +1,7 @@
 # server.py
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Query
+from fastapi.responses import FileResponse, JSONResponse
 import asyncio
 import json
 from datetime import datetime
@@ -14,7 +14,6 @@ app = FastAPI()
 
 clients: list[WebSocket] = []
 _loop_running = False
-_last_gdelt_url = None  # Track last processed file to avoid duplicates
 
 
 @app.get("/")
@@ -25,6 +24,17 @@ async def home():
 @app.head("/")
 async def head_home():
     return Response()
+
+
+@app.get("/api/events")
+async def get_events(hours: int = Query(default=24, ge=1, le=72)):
+    """
+    Return all events from the last N hours for the timeline slider.
+    Ordered oldest-first so the frontend can replay in sequence.
+    """
+    from db import get_events_since
+    events = get_events_since(hours=hours)
+    return JSONResponse(content={"events": events, "count": len(events)})
 
 
 @app.websocket("/ws")
@@ -73,11 +83,7 @@ async def broadcast(event: dict):
 
 
 async def gdelt_loop():
-    """
-    Main loop: downloads GDELT v2 CSV every 15 minutes,
-    extracts geo-tagged conflict/crisis events, broadcasts to clients.
-    """
-    global _loop_running, _last_gdelt_url
+    global _loop_running
 
     if _loop_running:
         print("⚠️ gdelt_loop already running — skipping duplicate")
@@ -86,14 +92,12 @@ async def gdelt_loop():
     _loop_running = True
     print("🚀 GDELT CSV intelligence loop started")
 
-    # Track seen events to avoid duplicates across cycles
     seen_keys: set = set()
 
     try:
         while True:
             print(f"🌐 Fetching GDELT CSV... ({len(clients)} client(s) connected)")
 
-            # Run blocking download in thread pool so it doesn't block the event loop
             loop = asyncio.get_event_loop()
             try:
                 events = await loop.run_in_executor(None, get_gdelt_events)
@@ -105,18 +109,15 @@ async def gdelt_loop():
             skipped   = 0
 
             for event in events:
-                # Deduplicate by location + message
                 key = f"{round(event['lat'],2)},{round(event['lng'],2)}:{event['message'][:40]}"
                 if key in seen_keys:
                     skipped += 1
                     continue
                 seen_keys.add(key)
 
-                # Keep seen set bounded
                 if len(seen_keys) > 2000:
                     seen_keys.clear()
 
-                # Add timestamp
                 event["time"] = datetime.utcnow().isoformat()
 
                 print(f"📡 [{event['type'].upper()}] {event.get('location','?')}: {event['message'][:70]}")
@@ -125,12 +126,9 @@ async def gdelt_loop():
                 await broadcast(event)
                 new_count += 1
 
-                # Small delay between events
                 await asyncio.sleep(0.2)
 
             print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 15min...")
-
-            # GDELT updates every 15 minutes — no point checking more often
             await asyncio.sleep(900)
 
     except Exception as e:

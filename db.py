@@ -144,3 +144,37 @@ def get_recent_events(limit: int = 100):
     except Exception as e:
         print(f"⚠️ DB get_recent_events error: {e}")
         return []
+
+
+def get_events_since(hours: int = 24) -> list:
+    """
+    Return all events from the last N hours, ordered oldest-first.
+    Used by the timeline slider API.
+    """
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        if USE_POSTGRES:
+            cur.execute("""
+                SELECT lat, lng, message, type, time
+                FROM events
+                WHERE time >= NOW() - INTERVAL '%s hours'
+                ORDER BY time ASC
+            """, (hours,))
+        else:
+            cur.execute("""
+                SELECT lat, lng, message, type, time
+                FROM events
+                WHERE time >= datetime('now', ? )
+                ORDER BY time ASC
+            """, (f'-{hours} hours',))
+
+        rows = cur.fetchall()
+        return [
+            {"lat": r[0], "lng": r[1], "message": r[2], "type": r[3], "time": r[4]}
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"⚠️ DB get_events_since error: {e}")
+        return []
