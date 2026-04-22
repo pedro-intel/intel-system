@@ -35,7 +35,6 @@
     overflow: hidden;
   }
 
-  /* ── HEADER ── */
   header {
     display: flex;
     align-items: center;
@@ -47,73 +46,33 @@
     flex-shrink: 0;
     z-index: 1000;
   }
-  .logo {
-    font-family: 'Orbitron', monospace;
-    font-weight: 900;
-    font-size: 17px;
-    letter-spacing: 4px;
-    color: var(--accent);
-  }
+  .logo { font-family: 'Orbitron', monospace; font-weight: 900; font-size: 17px; letter-spacing: 4px; color: var(--accent); }
   .logo span { color: #4a7a9b; font-weight: 400; font-size: 11px; letter-spacing: 2px; margin-left: 10px; }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-  }
-
+  .header-right { display: flex; align-items: center; gap: 24px; font-family: 'Share Tech Mono', monospace; font-size: 11px; }
   .live-badge { display: flex; align-items: center; gap: 6px; color: var(--accent2); font-size: 11px; }
-  .live-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--accent2);
-    animation: pulse 1.4s ease-in-out infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.7); }
-  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
   .live-dot.red    { background: var(--crit); animation: none; }
   .live-dot.yellow { background: var(--warn); animation: none; }
-
   #clock { color: var(--text); letter-spacing: 2px; font-size: 13px; }
   .stat { text-align: center; }
   .stat .val { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--accent); }
   .stat .lbl { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
 
-  /* ── MAIN LAYOUT ── */
   .main { display: grid; grid-template-columns: 1fr 320px; flex: 1; overflow: hidden; }
   #map { width: 100%; height: 100%; }
 
-  /* ── RIGHT PANEL ── */
-  .side-panel {
-    background: var(--panel);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .panel-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
+  .side-panel { background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .panel-title { font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 3px; color: var(--accent); }
   #event-count { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
 
   .filters { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; flex-shrink: 0; }
   .filter-btn {
     flex: 1; padding: 5px 0;
-    border: 1px solid var(--border);
-    background: transparent;
-    border-radius: 3px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px; cursor: pointer;
-    transition: all 0.2s; letter-spacing: 1px;
+    border: 1px solid var(--border); background: transparent;
+    border-radius: 3px; font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
   }
   .filter-btn.all  { color: var(--text); }
   .filter-btn.crit { color: var(--crit); }
@@ -121,23 +80,23 @@
   .filter-btn.info { color: var(--info); }
   .filter-btn.active { background: rgba(0,200,255,0.1); border-color: var(--accent); color: var(--accent); }
 
-  /* Cluster toggle button */
-  .cluster-toggle {
-    margin: 8px 16px;
-    padding: 6px 0;
-    border: 1px solid var(--border);
-    background: transparent;
-    border-radius: 3px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    cursor: pointer;
-    color: var(--accent);
-    letter-spacing: 1px;
-    transition: all 0.2s;
+  /* ── VIEW MODE TOGGLE BUTTONS ── */
+  .view-toggles {
+    display: flex;
+    gap: 6px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
-  .cluster-toggle:hover { background: rgba(0,200,255,0.1); }
-  .cluster-toggle.off { color: var(--dim); border-color: var(--dim); }
+  .view-btn {
+    flex: 1; padding: 6px 0;
+    border: 1px solid var(--border); background: transparent;
+    border-radius: 3px; font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; cursor: pointer; transition: all 0.2s;
+    letter-spacing: 1px; color: var(--dim);
+  }
+  .view-btn.active { background: rgba(0,200,255,0.1); border-color: var(--accent); color: var(--accent); }
+  .view-btn:hover  { border-color: var(--accent); color: var(--accent); }
 
   #event-feed { flex: 1; overflow-y: auto; padding: 8px; }
   #event-feed::-webkit-scrollbar { width: 4px; }
@@ -148,18 +107,13 @@
     padding: 10px 12px; margin-bottom: 6px;
     border-radius: 4px; border-left: 3px solid var(--dim);
     background: rgba(255,255,255,0.02);
-    cursor: pointer; transition: background 0.15s;
-    animation: slideIn 0.3s ease;
+    cursor: pointer; transition: background 0.15s; animation: slideIn 0.3s ease;
   }
   .event-card:hover { background: rgba(0,200,255,0.05); }
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(10px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
   .event-card.critical { border-left-color: var(--crit); }
   .event-card.warning  { border-left-color: var(--warn); }
   .event-card.info     { border-left-color: var(--info); }
-
   .event-type { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
   .event-card.critical .event-type { color: var(--crit); }
   .event-card.warning  .event-type { color: var(--warn); }
@@ -173,7 +127,29 @@
     color: var(--dim); flex-shrink: 0; display: flex; justify-content: space-between;
   }
 
-  /* ── LEAFLET POPUP ── */
+  /* Heatmap legend */
+  .heatmap-legend {
+    display: none;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .heatmap-legend.visible { display: block; }
+  .legend-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000);
+    margin-bottom: 4px;
+  }
+  .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--dim);
+  }
+
+  /* Leaflet popup */
   .leaflet-popup-content-wrapper { background: #070d18; border: 1px solid #0d2238; border-radius: 4px; color: #c8dff0; font-family: 'IBM Plex Sans', sans-serif; }
   .leaflet-popup-tip { background: #070d18; }
   .leaflet-popup-content { margin: 12px 16px; font-size: 13px; line-height: 1.6; }
@@ -183,28 +159,15 @@
   .popup-type.info     { color: #4da6ff; }
   .popup-time { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #3a5a78; margin-top: 6px; }
 
-  /* ── CUSTOM CLUSTER STYLES ── */
-  .marker-cluster-small,
-  .marker-cluster-medium,
-  .marker-cluster-large {
-    background-clip: padding-box;
-    border-radius: 50%;
-  }
+  /* Cluster styles */
+  .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background-clip: padding-box; border-radius: 50%; }
   .marker-cluster-small  { background-color: rgba(77,166,255,0.3); }
   .marker-cluster-medium { background-color: rgba(255,184,0,0.3);  }
   .marker-cluster-large  { background-color: rgba(255,62,62,0.3);  }
-  .marker-cluster-small  div { background-color: rgba(77,166,255,0.7);  }
-  .marker-cluster-medium div { background-color: rgba(255,184,0,0.7);   }
-  .marker-cluster-large  div { background-color: rgba(255,62,62,0.7);   }
-  .marker-cluster div {
-    width: 30px; height: 30px;
-    margin-left: 5px; margin-top: 5px;
-    text-align: center; border-radius: 15px;
-    font-family: 'Orbitron', monospace;
-    font-size: 11px; font-weight: 700;
-    color: #fff;
-    line-height: 30px;
-  }
+  .marker-cluster-small  div { background-color: rgba(77,166,255,0.7); }
+  .marker-cluster-medium div { background-color: rgba(255,184,0,0.7);  }
+  .marker-cluster-large  div { background-color: rgba(255,62,62,0.7);  }
+  .marker-cluster div { width: 30px; height: 30px; margin-left: 5px; margin-top: 5px; text-align: center; border-radius: 15px; font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700; color: #fff; line-height: 30px; }
   .marker-cluster { border: 2px solid rgba(255,255,255,0.2); }
 </style>
 </head>
@@ -242,9 +205,18 @@
       <button class="filter-btn info" onclick="setFilter('info')">INFO</button>
     </div>
 
-    <button class="cluster-toggle" id="cluster-btn" onclick="toggleClustering()">
-      ⬡ CLUSTERING: ON
-    </button>
+    <!-- View mode buttons -->
+    <div class="view-toggles">
+      <button class="view-btn active" id="btn-markers"  onclick="setView('markers')">⬤ MARKERS</button>
+      <button class="view-btn"        id="btn-cluster"  onclick="setView('cluster')">⬡ CLUSTER</button>
+      <button class="view-btn"        id="btn-heatmap"  onclick="setView('heatmap')">◈ HEATMAP</button>
+    </div>
+
+    <!-- Heatmap legend (shown only in heatmap mode) -->
+    <div class="heatmap-legend" id="heatmap-legend">
+      <div class="legend-bar"></div>
+      <div class="legend-labels"><span>LOW</span><span>MEDIUM</span><span>HIGH</span></div>
+    </div>
 
     <div id="event-feed"></div>
 
@@ -257,6 +229,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 // ── MAP SETUP ────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: false }).setView([20, 10], 2);
@@ -269,22 +242,15 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-// ── CLUSTERING SETUP ─────────────────────────────────────────
-let clusteringEnabled = true;
-
+// ── LAYERS ───────────────────────────────────────────────────
 const clusterGroup = L.markerClusterGroup({
   maxClusterRadius: 60,
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
   zoomToBoundsOnClick: true,
-
-  // Color clusters based on size
-  iconCreateFunction: function(cluster) {
+  iconCreateFunction(cluster) {
     const count = cluster.getChildCount();
-    let size = 'small';
-    if (count >= 20) size = 'large';
-    else if (count >= 8) size = 'medium';
-
+    const size  = count >= 20 ? 'large' : count >= 8 ? 'medium' : 'small';
     return L.divIcon({
       html: `<div><span>${count}</span></div>`,
       className: `marker-cluster marker-cluster-${size}`,
@@ -293,29 +259,79 @@ const clusterGroup = L.markerClusterGroup({
   }
 });
 
-map.addLayer(clusterGroup);
+// Plain layer group for unclustered markers
+const markerGroup = L.layerGroup().addTo(map);
+
+// Heatmap layer (starts empty)
+const heatLayer = L.heatLayer([], {
+  radius: 35,
+  blur: 25,
+  maxZoom: 10,
+  gradient: {
+    0.0: '#0000ff',
+    0.3: '#00ffff',
+    0.5: '#00ff00',
+    0.7: '#ffff00',
+    1.0: '#ff0000'
+  }
+});
 
 // ── STATE ────────────────────────────────────────────────────
-let allEvents    = [];
-let allMarkers   = []; // stores {marker, event} for filter/toggle
+let currentView   = 'markers'; // 'markers' | 'cluster' | 'heatmap'
+let allEvents     = [];
+let allMarkers    = []; // { marker, event }
+let heatPoints    = []; // [lat, lng, intensity]
 let currentFilter = 'all';
 let stats = { total: 0, critical: 0, warning: 0, info: 0 };
 
-// ── MARKER COLORS ────────────────────────────────────────────
-const COLORS = { critical: '#ff3e3e', warning: '#ffb800', info: '#4da6ff' };
-const RADII  = { critical: 10, warning: 8, info: 6 };
+const COLORS   = { critical: '#ff3e3e', warning: '#ffb800', info: '#4da6ff' };
+const RADII    = { critical: 10, warning: 8, info: 6 };
+const HEAT_INT = { critical: 1.0, warning: 0.6, info: 0.3 };
 
+// ── VIEW SWITCHER ─────────────────────────────────────────────
+function setView(mode) {
+  currentView = mode;
+
+  // Update button states
+  ['markers','cluster','heatmap'].forEach(m => {
+    document.getElementById(`btn-${m}`).classList.toggle('active', m === mode);
+  });
+
+  // Show/hide heatmap legend
+  document.getElementById('heatmap-legend').classList.toggle('visible', mode === 'heatmap');
+
+  // Remove all layers
+  map.removeLayer(markerGroup);
+  map.removeLayer(clusterGroup);
+  map.removeLayer(heatLayer);
+
+  if (mode === 'markers') {
+    // Rebuild plain marker layer
+    markerGroup.clearLayers();
+    allMarkers.forEach(({ marker }) => markerGroup.addLayer(marker));
+    map.addLayer(markerGroup);
+
+  } else if (mode === 'cluster') {
+    clusterGroup.clearLayers();
+    allMarkers.forEach(({ marker }) => clusterGroup.addLayer(marker));
+    map.addLayer(clusterGroup);
+
+  } else if (mode === 'heatmap') {
+    // Rebuild heat points from all events
+    heatPoints = allEvents.map(e => [e.lat, e.lng, HEAT_INT[e.type] || 0.3]);
+    heatLayer.setLatLngs(heatPoints);
+    map.addLayer(heatLayer);
+  }
+}
+
+// ── MAKE MARKER ───────────────────────────────────────────────
 function makeMarker(event) {
   const color  = COLORS[event.type] || COLORS.info;
   const radius = RADII[event.type]  || 6;
 
   const marker = L.circleMarker([event.lat, event.lng], {
-    radius,
-    color,
-    fillColor: color,
-    fillOpacity: 0.75,
-    weight: 1.5,
-    opacity: 0.9
+    radius, color, fillColor: color,
+    fillOpacity: 0.75, weight: 1.5, opacity: 0.9
   });
 
   const typeLabel = (event.type || 'info').toUpperCase();
@@ -327,14 +343,15 @@ function makeMarker(event) {
     <div class="popup-time">${time}</div>
   `);
 
-  // Add to cluster group (or map directly if clustering off)
-  if (clusteringEnabled) {
+  // Add to the correct layer based on current view
+  if (currentView === 'markers') {
+    markerGroup.addLayer(marker);
+  } else if (currentView === 'cluster') {
     clusterGroup.addLayer(marker);
-  } else {
-    marker.addTo(map);
   }
+  // Heatmap: don't add marker, just add heat point
 
-  // Pulse animation for new critical events
+  // Pulse for critical
   if (event.type === 'critical') {
     const pulse = L.circleMarker([event.lat, event.lng], {
       radius, color, fillColor: color, fillOpacity: 0, weight: 2, opacity: 0.6
@@ -351,35 +368,6 @@ function makeMarker(event) {
   return marker;
 }
 
-// ── CLUSTER TOGGLE ───────────────────────────────────────────
-function toggleClustering() {
-  clusteringEnabled = !clusteringEnabled;
-  const btn = document.getElementById('cluster-btn');
-
-  // Remove everything
-  clusterGroup.clearLayers();
-  allMarkers.forEach(({ marker }) => {
-    if (map.hasLayer(marker)) map.removeLayer(marker);
-  });
-
-  // Re-add all markers to correct layer
-  allMarkers.forEach(({ marker }) => {
-    if (clusteringEnabled) {
-      clusterGroup.addLayer(marker);
-    } else {
-      marker.addTo(map);
-    }
-  });
-
-  if (clusteringEnabled) {
-    btn.textContent = '⬡ CLUSTERING: ON';
-    btn.classList.remove('off');
-  } else {
-    btn.textContent = '⬡ CLUSTERING: OFF';
-    btn.classList.add('off');
-  }
-}
-
 // ── EVENT FEED CARD ──────────────────────────────────────────
 function addEventCard(event, marker) {
   const feed = document.getElementById('event-feed');
@@ -388,7 +376,6 @@ function addEventCard(event, marker) {
   card.dataset.type = event.type;
 
   const time = event.time ? new Date(event.time).toLocaleTimeString('en-US', { hour12: false }) : '';
-
   card.innerHTML = `
     <div class="event-type">${(event.type || 'info').toUpperCase()}</div>
     <div class="event-msg">${event.message}</div>
@@ -397,8 +384,12 @@ function addEventCard(event, marker) {
 
   card.onclick = () => {
     map.setView([event.lat, event.lng], 6, { animate: true });
-    // Unspiderfy and open popup
-    clusterGroup.zoomToShowLayer(marker, () => marker.openPopup());
+    if (currentView === 'cluster') {
+      clusterGroup.zoomToShowLayer(marker, () => marker.openPopup());
+    } else if (currentView === 'markers') {
+      marker.openPopup();
+    }
+    // In heatmap mode just fly to location
   };
 
   feed.insertBefore(card, feed.firstChild);
@@ -407,9 +398,7 @@ function addEventCard(event, marker) {
     card.style.display = 'none';
   }
 
-  while (feed.children.length > 200) {
-    feed.removeChild(feed.lastChild);
-  }
+  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
 
   document.getElementById('feed-count').textContent =
     feed.querySelectorAll('.event-card:not([style*="none"])').length + ' in feed';
@@ -420,11 +409,9 @@ function setFilter(type) {
   currentFilter = type;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`.filter-btn.${type === 'all' ? 'all' : type === 'critical' ? 'crit' : type === 'warning' ? 'warn' : 'info'}`).classList.add('active');
-
   document.querySelectorAll('.event-card').forEach(card => {
     card.style.display = (type === 'all' || card.dataset.type === type) ? '' : 'none';
   });
-
   const visible = document.querySelectorAll('.event-card:not([style*="none"])').length;
   document.getElementById('feed-count').textContent = visible + ' in feed';
 }
@@ -435,7 +422,6 @@ function updateStats(type) {
   if (type === 'critical') stats.critical++;
   else if (type === 'warning') stats.warning++;
   else stats.info++;
-
   document.getElementById('stat-total').textContent = stats.total;
   document.getElementById('stat-crit').textContent  = stats.critical;
   document.getElementById('stat-warn').textContent  = stats.warning;
@@ -452,17 +438,22 @@ function processEvent(data) {
   allMarkers.push({ marker, event: data });
   allEvents.push(data);
 
+  // Update heatmap live if in heatmap mode
+  if (currentView === 'heatmap') {
+    heatPoints.push([data.lat, data.lng, HEAT_INT[data.type] || 0.3]);
+    heatLayer.setLatLngs(heatPoints);
+  }
+
   addEventCard(data, marker);
   updateStats(data.type);
 }
 
-// ── WEBSOCKET WITH AUTO-RECONNECT ────────────────────────────
+// ── WEBSOCKET ────────────────────────────────────────────────
 let ws, reconnectTimer;
 
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws`);
-
   const dot    = document.getElementById('ws-dot');
   const status = document.getElementById('ws-status');
 
@@ -471,21 +462,11 @@ function connect() {
     status.textContent = 'LIVE';
     clearTimeout(reconnectTimer);
   };
-
   ws.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      processEvent(data);
-    } catch (err) {
-      console.warn('⚠️ Bad message:', e.data);
-    }
+    try { processEvent(JSON.parse(e.data)); }
+    catch (err) { console.warn('Bad message:', e.data); }
   };
-
-  ws.onerror = () => {
-    dot.className = 'live-dot red';
-    status.textContent = 'ERROR';
-  };
-
+  ws.onerror = () => { dot.className = 'live-dot red'; status.textContent = 'ERROR'; };
   ws.onclose = () => {
     dot.className = 'live-dot yellow';
     status.textContent = 'RECONNECTING';
