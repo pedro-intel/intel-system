@@ -128,7 +128,7 @@ async def gdelt_loop():
 
                 await asyncio.sleep(0.2)
 
-            print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 15min...")
+            print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 6h...")
             await asyncio.sleep(900)
 
     except Exception as e:
@@ -142,6 +142,6 @@ async def gdelt_loop():
 
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Starting SENTINEL (GDELT CSV mode)...")
+    print("🚀 Starting SENTINEL (ACLED mode)...")
     load_model()
     asyncio.create_task(gdelt_loop())
