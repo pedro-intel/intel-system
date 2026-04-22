@@ -1,11 +1,19 @@
-import spacy
+# ml_model.py
 
-# 🔒 SAFE LOAD (prevents crash)
-try:
-    nlp = spacy.load("en_core_web_sm")
-except:
-    nlp = None
-    print("⚠️ spaCy model not loaded, using fallback")
+import random
+
+# ❌ DO NOT load spacy at import time (this caused your crash)
+nlp = None
+
+def load_model():
+    global nlp
+    try:
+        import spacy
+        nlp = spacy.load("en_core_web_sm")
+        print("✅ spaCy loaded")
+    except Exception as e:
+        print("⚠️ spaCy failed:", e)
+        nlp = None
 
 
 def extract_location(text):
@@ -22,8 +30,6 @@ def extract_location(text):
 
 
 def fake_geocode(place):
-    # fallback coords
-    import random
     return (
         random.uniform(-60, 70),
         random.uniform(-180, 180)

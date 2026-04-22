@@ -7,20 +7,19 @@ import json
 import random
 from datetime import datetime
 
-from ml_model import extract_location, classify_event
+from ml_model import extract_location, classify_event, load_model
 from news_ingest import get_news
 from db import save_event
 
 app = FastAPI()
-
 clients = []
 
-# 🌍 Serve frontend
+
 @app.get("/")
 async def home():
     return FileResponse("intel_map.html")
 
-# 🔌 WebSocket endpoint
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -35,7 +34,6 @@ async def websocket_endpoint(websocket: WebSocket):
         print("🔴 Client disconnected")
 
 
-# 🎯 Fake coordinates fallback
 def fake_coordinates():
     return {
         "lat": random.uniform(-60, 70),
@@ -43,12 +41,11 @@ def fake_coordinates():
     }
 
 
-# 🚀 MAIN LOOP
 async def news_loop():
     while True:
         print("🔄 Fetching news...")
 
-        # 🔥 TEST EVENT (ALWAYS SEND)
+        # 🔥 ALWAYS SEND TEST EVENT
         test_event = {
             "lat": 18.4655,
             "lng": -66.1057,
@@ -65,8 +62,11 @@ async def news_loop():
             except:
                 pass
 
-        # 📰 REAL NEWS EVENTS
-        news_items = get_news()
+        # 📰 REAL NEWS
+        try:
+            news_items = get_news()
+        except:
+            news_items = []
 
         for article in news_items[:5]:
             location = extract_location(article["title"])
@@ -98,7 +98,11 @@ async def news_loop():
         await asyncio.sleep(30)
 
 
-# ▶️ START BACKGROUND TASK
 @app.on_event("startup")
 async def startup_event():
+    print("🚀 Starting server...")
+
+    # ✅ SAFE MODEL LOAD (won’t crash app)
+    load_model()
+
     asyncio.create_task(news_loop())
