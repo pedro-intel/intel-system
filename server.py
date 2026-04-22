@@ -119,7 +119,7 @@ async def gdelt_loop():
                 # Add timestamp
                 event["time"] = datetime.utcnow().isoformat()
 
-                print(f"📡 [{event['type'].upper()}] {event.get('location','?')}: {event['message'][:60]}")
+                print(f"📡 [{event['type'].upper()}] {event.get('location','?')}: {event['message'][:70]}")
 
                 save_event(event)
                 await broadcast(event)

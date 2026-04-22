@@ -58,8 +58,7 @@ RELEVANT_CAMEO = {
     "175": "warning",  "14":  "warning",  "140": "warning",
     "141": "warning",  "145": "warning",  "15":  "warning",
     "150": "warning",  "151": "warning",  "152": "warning",
-    "155": "warning",  "01":  "info",     "02":  "info",
-    "03":  "info",     "04":  "info",     "05":  "info",
+    "155": "warning",
 }
 
 # CAMEO root code → readable action description
