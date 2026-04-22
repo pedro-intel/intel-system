@@ -2,8 +2,11 @@
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, Query
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 import asyncio
 import json
+import csv
+import io
 from datetime import datetime
 
 from ml_model import classify_event, load_model
@@ -15,7 +18,52 @@ app = FastAPI()
 clients: list[WebSocket] = []
 _loop_running = False
 
+# ── DISCORD WEBHOOK ───────────────────────────────────────────────────────────
+import os
+import requests as _requests
 
+DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK_URL")
+_last_discord_alert = {}  # country → timestamp, to avoid spam
+
+
+def send_discord_alert(event: dict):
+    """Send critical event to Discord webhook if configured."""
+    if not DISCORD_WEBHOOK:
+        return
+
+    country = event.get("location", "Unknown")
+    now = datetime.utcnow()
+
+    # Rate limit: max 1 alert per country per 30 minutes
+    last = _last_discord_alert.get(country)
+    if last and (now - last).seconds < 1800:
+        return
+    _last_discord_alert[country] = now
+
+    try:
+        color = 0xff3e3e if event["type"] == "critical" else 0xffb800
+        payload = {
+            "embeds": [{
+                "title": f"⚠️ {event['type'].upper()} EVENT — {country}",
+                "description": event.get("message", "No details"),
+                "color": color,
+                "fields": [
+                    {"name": "Location", "value": country, "inline": True},
+                    {"name": "Source", "value": event.get("source", "SENTINEL"), "inline": True},
+                    {"name": "Coordinates", "value": f"{event['lat']:.4f}, {event['lng']:.4f}", "inline": True},
+                    {"name": "Time", "value": event.get("time", now.isoformat()) + " UTC", "inline": False},
+                ],
+                "footer": {"text": "SENTINEL // Global Intelligence Monitor"},
+                "timestamp": now.isoformat(),
+            }]
+        }
+        _requests.post(DISCORD_WEBHOOK, json=payload, timeout=5)
+        print(f"🔔 Discord alert sent: {country}")
+    except Exception as e:
+        print(f"⚠️ Discord alert failed: {e}")
+
+
+# ── ROUTES ────────────────────────────────────────────────────────────────────
 @app.get("/")
 async def home():
     return FileResponse("intel_map.html")
@@ -26,17 +74,73 @@ async def head_home():
     return Response()
 
 
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("favicon.ico") if os.path.exists("favicon.ico") else Response(status_code=404)
+
+
+# ── REST API ──────────────────────────────────────────────────────────────────
 @app.get("/api/events")
 async def get_events(hours: int = Query(default=24, ge=1, le=72)):
-    """
-    Return all events from the last N hours for the timeline slider.
-    Ordered oldest-first so the frontend can replay in sequence.
-    """
+    """Return all events from the last N hours for the timeline slider."""
     from db import get_events_since
     events = get_events_since(hours=hours)
     return JSONResponse(content={"events": events, "count": len(events)})
 
 
+@app.get("/api/events/export")
+async def export_events(
+    hours: int = Query(default=24, ge=1, le=72),
+    fmt: str = Query(default="json")
+):
+    """Export events as JSON or CSV."""
+    from db import get_events_since
+    events = get_events_since(hours=hours)
+
+    if fmt == "csv":
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=["lat", "lng", "message", "type", "time"])
+        writer.writeheader()
+        writer.writerows(events)
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=sentinel_events_{hours}h.csv"}
+        )
+
+    return JSONResponse(
+        content={"events": events, "count": len(events), "hours": hours},
+        headers={"Content-Disposition": f"attachment; filename=sentinel_events_{hours}h.json"}
+    )
+
+
+@app.get("/api/stats")
+async def get_stats():
+    """Return summary statistics."""
+    from db import get_events_since
+    events = get_events_since(hours=24)
+    counts = {"critical": 0, "warning": 0, "info": 0}
+    countries = {}
+    for e in events:
+        counts[e.get("type", "info")] = counts.get(e.get("type", "info"), 0) + 1
+        c = e.get("location", "Unknown")
+        countries[c] = countries.get(c, 0) + 1
+
+    top_countries = sorted(countries.items(), key=lambda x: -x[1])[:10]
+    return JSONResponse(content={
+        "total": len(events),
+        "by_type": counts,
+        "top_countries": [{"country": k, "count": v} for k, v in top_countries],
+        "period_hours": 24,
+    })
+
+
+@app.get("/api/health")
+async def health():
+    return JSONResponse(content={"status": "ok", "timestamp": datetime.utcnow().isoformat()})
+
+
+# ── WEBSOCKET ─────────────────────────────────────────────────────────────────
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -82,31 +186,31 @@ async def broadcast(event: dict):
             clients.remove(c)
 
 
-async def gdelt_loop():
+# ── MAIN INTEL LOOP ───────────────────────────────────────────────────────────
+async def intel_loop():
     global _loop_running
 
     if _loop_running:
-        print("⚠️ gdelt_loop already running — skipping duplicate")
+        print("⚠️ intel_loop already running — skipping duplicate")
         return
 
     _loop_running = True
-    print("🚀 GDELT CSV intelligence loop started")
-
+    print("🚀 SENTINEL intelligence loop started")
     seen_keys: set = set()
 
     try:
         while True:
-            print(f"🌐 Fetching GDELT CSV... ({len(clients)} client(s) connected)")
+            print(f"🌐 Fetching events... ({len(clients)} client(s) connected)")
 
             loop = asyncio.get_event_loop()
             try:
                 events = await loop.run_in_executor(None, get_gdelt_events)
             except Exception as e:
-                print(f"⚠️ GDELT fetch error: {e}")
+                print(f"⚠️ Fetch error: {e}")
                 events = []
 
             new_count = 0
-            skipped   = 0
+            skipped = 0
 
             for event in events:
                 key = f"{round(event['lat'],2)},{round(event['lng'],2)}:{event['message'][:40]}"
@@ -124,24 +228,28 @@ async def gdelt_loop():
 
                 save_event(event)
                 await broadcast(event)
-                new_count += 1
 
+                # Send Discord alert for critical events
+                if event["type"] == "critical":
+                    await loop.run_in_executor(None, send_discord_alert, event)
+
+                new_count += 1
                 await asyncio.sleep(0.2)
 
             print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 6h...")
-            await asyncio.sleep(900)
+            await asyncio.sleep(21600)
 
     except Exception as e:
-        print(f"❌ gdelt_loop crashed: {e}")
+        print(f"❌ intel_loop crashed: {e}")
         import traceback
         traceback.print_exc()
     finally:
         _loop_running = False
-        print("⚠️ gdelt_loop exited")
+        print("⚠️ intel_loop exited")
 
 
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Starting SENTINEL (ACLED mode)...")
+    print("🚀 Starting SENTINEL...")
     load_model()
-    asyncio.create_task(gdelt_loop())
+    asyncio.create_task(intel_loop())

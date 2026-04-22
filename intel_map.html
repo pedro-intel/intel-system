@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -350,6 +351,46 @@
     .mobile-tab-btn .icon { font-size: 18px; }
   }
 
+
+  /* Export button */
+  .export-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--accent2);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all .2s;
+    flex-shrink: 0;
+  }
+  .export-btn:hover { background: rgba(0,255,157,.1); border-color: var(--accent2); }
+  .export-menu {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    z-index: 2000;
+    display: none;
+    min-width: 160px;
+  }
+  .export-menu.open { display: block; }
+  .export-item {
+    padding: 10px 14px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s;
+    letter-spacing: 1px;
+  }
+  .export-item:hover { background: rgba(0,200,255,.1); color: var(--accent); }
+
 </style>
 </head>
 <body>
@@ -442,9 +483,18 @@
     <div class="tab-content" id="tab-countries">
       <div id="country-stats"></div>
     </div>
-    <div class="status-bar-bottom">
+    <div class="status-bar-bottom" style="position:relative;">
       <span id="last-update">No data yet</span>
       <span id="feed-count">0 in feed</span>
+      <div style="position:relative;">
+        <button class="export-btn" onclick="toggleExportMenu()">⬇ EXPORT</button>
+        <div class="export-menu" id="export-menu">
+          <div class="export-item" onclick="exportData('json', 24)">📄 JSON — Last 24h</div>
+          <div class="export-item" onclick="exportData('csv', 24)">📊 CSV — Last 24h</div>
+          <div class="export-item" onclick="exportData('json', 72)">📄 JSON — Last 72h</div>
+          <div class="export-item" onclick="exportData('csv', 72)">📊 CSV — Last 72h</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -951,6 +1001,34 @@ function openDetail(event) {
   if (isMobile()) {
     // On mobile, close the side panel when detail opens
     document.querySelector('.side-panel').classList.remove('mobile-open');
+  }
+}
+
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+function toggleExportMenu() {
+  document.getElementById('export-menu').classList.toggle('open');
+}
+
+// Close export menu when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.export-btn') && !e.target.closest('.export-menu')) {
+    document.getElementById('export-menu').classList.remove('open');
+  }
+});
+
+async function exportData(format, hours) {
+  document.getElementById('export-menu').classList.remove('open');
+  try {
+    const url = `/api/events/export?fmt=${format}&hours=${hours}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sentinel_events_${hours}h.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch(e) {
+    console.error('Export failed:', e);
   }
 }
 
