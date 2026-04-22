@@ -4,7 +4,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response
 from fastapi.responses import FileResponse
 import asyncio
 import json
-import random
 import feedparser
 from datetime import datetime
 
@@ -14,7 +13,7 @@ from db import save_event
 app = FastAPI()
 
 clients: list[WebSocket] = []
-_news_loop_running = False  # Guard against multiple loop instances
+_news_loop_running = False
 
 
 @app.get("/")
@@ -36,7 +35,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
     # Replay recent events from DB so map isn't empty on connect
     from db import get_recent_events
-    recent = get_recent_events(limit=50)
+    recent = get_recent_events(limit=100)
+    replayed = 0
     for row in recent:
         event = {
             "lat": row[0], "lng": row[1],
@@ -44,15 +44,16 @@ async def websocket_endpoint(websocket: WebSocket):
         }
         try:
             await websocket.send_text(json.dumps(event))
+            replayed += 1
         except Exception:
             pass
+    print(f"📤 Replayed {replayed} historical events to new client")
 
     try:
         while True:
             try:
                 await asyncio.wait_for(websocket.receive_text(), timeout=30)
             except asyncio.TimeoutError:
-                # Send keepalive ping every 30s
                 await websocket.send_text(json.dumps({"ping": True}))
     except (WebSocketDisconnect, Exception):
         if websocket in clients:
@@ -60,18 +61,13 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"🔴 Client disconnected ({len(clients)} remaining)")
 
 
-def fake_coordinates():
-    return {
-        "lat": random.uniform(-60, 70),
-        "lng": random.uniform(-180, 180)
-    }
-
-
 def fetch_rss_news():
-    """Fetch news from RSS feeds. Returns list of {title, summary} dicts."""
+    """Fetch news from RSS feeds."""
     RSS_FEEDS = [
         "http://feeds.bbci.co.uk/news/world/rss.xml",
         "https://rss.cnn.com/rss/edition_world.rss",
+        "https://feeds.skynews.com/feeds/rss/world.xml",
+        "https://www.aljazeera.com/xml/rss/all.xml",
     ]
     items = []
     for url in RSS_FEEDS:
@@ -104,7 +100,6 @@ async def news_loop():
     """Main loop: fetch RSS, classify, geolocate, broadcast."""
     global _news_loop_running
 
-    # Prevent multiple instances of this loop
     if _news_loop_running:
         print("⚠️ news_loop already running — skipping duplicate")
         return
@@ -119,6 +114,7 @@ async def news_loop():
 
             news_items = fetch_rss_news()
             new_count = 0
+            skipped_no_location = 0
 
             for article in news_items:
                 title = article["title"]
@@ -131,13 +127,15 @@ async def news_loop():
                     seen_titles.clear()
 
                 text = title + " " + article.get("summary", "")
-                location = extract_location(text)
 
-                if location:
-                    lat, lng = location
-                else:
-                    coords = fake_coordinates()
-                    lat, lng = coords["lat"], coords["lng"]
+                # ✅ PRIORITY FIX: skip events with no real location
+                location = extract_location(text)
+                if not location:
+                    skipped_no_location += 1
+                    print(f"⏭️  Skipped (no location): {title[:60]}")
+                    continue
+
+                lat, lng = location
 
                 event = {
                     "lat": lat,
@@ -147,7 +145,7 @@ async def news_loop():
                     "time": datetime.utcnow().isoformat()
                 }
 
-                print(f"📡 EVENT [{event['type'].upper()}]: {title[:80]}")
+                print(f"📡 EVENT [{event['type'].upper()}] @ ({lat:.2f},{lng:.2f}): {title[:60]}")
 
                 save_event(event)
                 await broadcast(event)
@@ -155,14 +153,16 @@ async def news_loop():
 
                 await asyncio.sleep(0.5)
 
-            print(f"✅ Cycle done ({new_count} new events). Waiting 60s...")
+            print(f"✅ Cycle done — {new_count} plotted, {skipped_no_location} skipped. Waiting 60s...")
             await asyncio.sleep(60)
 
     except Exception as e:
         print(f"❌ news_loop crashed: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         _news_loop_running = False
-        print("⚠️ news_loop exited — will not restart automatically")
+        print("⚠️ news_loop exited")
 
 
 @app.on_event("startup")

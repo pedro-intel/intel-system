@@ -1,45 +1,75 @@
 # db.py
+# Supports both PostgreSQL (production) and SQLite (local dev)
+# Set DATABASE_URL env var on Render to use PostgreSQL automatically
 
-import sqlite3
+import os
 import threading
 from datetime import datetime
 
-DB_PATH = "intel.db"
+DATABASE_URL = os.getenv("DATABASE_URL")  # Set this on Render
+USE_POSTGRES = DATABASE_URL is not None
+
+if USE_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
+    print("🐘 Using PostgreSQL")
+else:
+    import sqlite3
+    print("🗄️ Using SQLite (local dev)")
 
 _local = threading.local()
 
 
 def get_conn():
-    """Return a thread-local SQLite connection."""
-    if not hasattr(_local, "conn") or _local.conn is None:
-        _local.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-        _local.conn.row_factory = sqlite3.Row
-    return _local.conn
+    """Return a connection — PostgreSQL or SQLite depending on env."""
+    if USE_POSTGRES:
+        # PostgreSQL: create a new connection per thread
+        if not hasattr(_local, "pg_conn") or _local.pg_conn is None or _local.pg_conn.closed:
+            _local.pg_conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+        return _local.pg_conn
+    else:
+        # SQLite: thread-local connection
+        if not hasattr(_local, "conn") or _local.conn is None:
+            _local.conn = sqlite3.connect("intel.db", check_same_thread=False)
+            _local.conn.row_factory = sqlite3.Row
+        return _local.conn
 
 
 def init_db():
-    """Create tables, migrating schema if column names changed."""
+    """Create tables if they don't exist. Handles both Postgres and SQLite."""
     conn = get_conn()
+    cur = conn.cursor()
 
-    # Detect old schema: had 'lon' instead of 'lng'
-    cursor = conn.execute("PRAGMA table_info(events)")
-    columns = [row[1] for row in cursor.fetchall()]
+    if USE_POSTGRES:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS events (
+                id      SERIAL PRIMARY KEY,
+                lat     DOUBLE PRECISION NOT NULL,
+                lng     DOUBLE PRECISION NOT NULL,
+                message TEXT,
+                type    TEXT,
+                time    TEXT
+            )
+        """)
+    else:
+        # SQLite: detect and migrate old schema (lon → lng)
+        cur.execute("PRAGMA table_info(events)")
+        columns = [row[1] for row in cur.fetchall()]
+        if columns and "lon" in columns and "lng" not in columns:
+            print("⚠️ Old schema detected — migrating...")
+            cur.execute("DROP TABLE IF EXISTS events")
 
-    if columns and "lon" in columns and "lng" not in columns:
-        print("⚠️ Old schema detected (lon vs lng) — dropping and recreating...")
-        conn.execute("DROP TABLE IF EXISTS events")
-        conn.commit()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS events (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                lat     REAL    NOT NULL,
+                lng     REAL    NOT NULL,
+                message TEXT,
+                type    TEXT,
+                time    TEXT
+            )
+        """)
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS events (
-            id      INTEGER PRIMARY KEY AUTOINCREMENT,
-            lat     REAL    NOT NULL,
-            lng     REAL    NOT NULL,
-            message TEXT,
-            type    TEXT,
-            time    TEXT
-        )
-    """)
     conn.commit()
     print("✅ Database ready")
 
@@ -49,22 +79,42 @@ init_db()
 
 
 def save_event(event: dict):
-    """Persist a single event to the database."""
+    """Persist a single event."""
     try:
         conn = get_conn()
-        conn.execute(
-            "INSERT INTO events (lat, lng, message, type, time) VALUES (?, ?, ?, ?, ?)",
-            (
-                event.get("lat"),
-                event.get("lng"),
-                event.get("message", ""),
-                event.get("type", "info"),
-                event.get("time", datetime.utcnow().isoformat()),
+        cur = conn.cursor()
+
+        if USE_POSTGRES:
+            cur.execute(
+                "INSERT INTO events (lat, lng, message, type, time) VALUES (%s, %s, %s, %s, %s)",
+                (
+                    event.get("lat"),
+                    event.get("lng"),
+                    event.get("message", ""),
+                    event.get("type", "info"),
+                    event.get("time", datetime.utcnow().isoformat()),
+                )
             )
-        )
+        else:
+            cur.execute(
+                "INSERT INTO events (lat, lng, message, type, time) VALUES (?, ?, ?, ?, ?)",
+                (
+                    event.get("lat"),
+                    event.get("lng"),
+                    event.get("message", ""),
+                    event.get("type", "info"),
+                    event.get("time", datetime.utcnow().isoformat()),
+                )
+            )
+
         conn.commit()
     except Exception as e:
         print(f"⚠️ DB save_event error: {e}")
+        # Reset broken connection
+        if USE_POSTGRES:
+            _local.pg_conn = None
+        else:
+            _local.conn = None
 
 
 def save_events(events: list):
@@ -77,11 +127,20 @@ def get_recent_events(limit: int = 100):
     """Return most recent events as list of tuples (lat, lng, message, type, time)."""
     try:
         conn = get_conn()
-        cursor = conn.execute(
-            "SELECT lat, lng, message, type, time FROM events ORDER BY id DESC LIMIT ?",
-            (limit,)
-        )
-        return cursor.fetchall()
+        cur = conn.cursor()
+
+        if USE_POSTGRES:
+            cur.execute(
+                "SELECT lat, lng, message, type, time FROM events ORDER BY id DESC LIMIT %s",
+                (limit,)
+            )
+        else:
+            cur.execute(
+                "SELECT lat, lng, message, type, time FROM events ORDER BY id DESC LIMIT ?",
+                (limit,)
+            )
+
+        return cur.fetchall()
     except Exception as e:
         print(f"⚠️ DB get_recent_events error: {e}")
         return []
