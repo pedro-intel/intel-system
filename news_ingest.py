@@ -133,10 +133,9 @@ COL_ACTOR1NAME     = 6
 COL_ACTOR2NAME     = 16
 COL_ACTIONGEO_NAME = 53
 COL_ACTIONGEO_CC   = 54  # FIPS 10-4 country code
-COL_ACTIONGEO_ADM1 = 55  # ADM1 state/province code
-COL_ACTIONGEO_ADM2 = 56  # ADM2 county/district code
-COL_ACTIONGEO_LAT  = 57  # Latitude
-COL_ACTIONGEO_LNG  = 58  # Longitude
+COL_ACTIONGEO_ADM1 = 55  # ADM1 state/province code (first 2 chars = country code)
+COL_ACTIONGEO_LAT  = 56  # Latitude (confirmed working)
+COL_ACTIONGEO_LNG  = 57  # Longitude (confirmed working)
 COL_NUMARTICLES    = 33
 
 # Reverse lookup for location name matching
