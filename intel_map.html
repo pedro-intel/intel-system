@@ -525,6 +525,20 @@ searchInput.addEventListener('input', () => {
 
 searchInput.addEventListener('blur', () => setTimeout(()=>searchResults.style.display='none', 200));
 
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const q = searchInput.value.trim().toLowerCase();
+    const match = Object.keys(countryCounts).find(c => c.toLowerCase().includes(q));
+    if (match) zoomToCountry(match);
+    else if (q.length > 0) {
+      searchResults.innerHTML = '<div class="search-result" style="color:var(--dim)">No matches found</div>';
+      searchResults.style.display = 'block';
+      setTimeout(() => searchResults.style.display = 'none', 2000);
+    }
+  }
+  if (e.key === 'Escape') { searchInput.value=''; searchResults.style.display='none'; setFilter(currentFilter); }
+});
+
 function zoomToCountry(country) {
   const data = countryCounts[country];
   if (!data || data.events.length === 0) return;
