@@ -6,7 +6,6 @@ from datetime import datetime
 
 DB_PATH = "intel.db"
 
-# Use thread-local storage for connections (safe under FastAPI/asyncio + threads)
 _local = threading.local()
 
 
@@ -19,8 +18,18 @@ def get_conn():
 
 
 def init_db():
-    """Create tables if they don't exist."""
+    """Create tables, migrating schema if column names changed."""
     conn = get_conn()
+
+    # Detect old schema: had 'lon' instead of 'lng'
+    cursor = conn.execute("PRAGMA table_info(events)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if columns and "lon" in columns and "lng" not in columns:
+        print("⚠️ Old schema detected (lon vs lng) — dropping and recreating...")
+        conn.execute("DROP TABLE IF EXISTS events")
+        conn.commit()
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS events (
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,13 +68,13 @@ def save_event(event: dict):
 
 
 def save_events(events: list):
-    """Persist a list of events to the database."""
+    """Persist a list of events."""
     for event in events:
         save_event(event)
 
 
 def get_recent_events(limit: int = 100):
-    """Return the most recent events as a list of tuples (lat, lng, message, type, time)."""
+    """Return most recent events as list of tuples (lat, lng, message, type, time)."""
     try:
         conn = get_conn()
         cursor = conn.execute(

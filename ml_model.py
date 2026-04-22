@@ -1,6 +1,5 @@
 # ml_model.py
 
-import random
 import requests
 
 # spaCy loaded lazily so it never crashes on import
@@ -8,7 +7,7 @@ nlp = None
 
 
 def load_model():
-    """Load spaCy model. Call once at startup."""
+    """Load spaCy model. Called once at startup."""
     global nlp
     try:
         import spacy
@@ -21,14 +20,16 @@ def load_model():
 
 def geocode_place(place: str):
     """
-    Try to geocode a place name using Nominatim (OpenStreetMap).
+    Geocode a place name via Nominatim (OpenStreetMap).
     Returns (lat, lng) tuple or None.
     """
     try:
-        url = "https://nominatim.openstreetmap.org/search"
-        params = {"q": place, "format": "json", "limit": 1}
-        headers = {"User-Agent": "intel-system/1.0"}
-        res = requests.get(url, params=params, headers=headers, timeout=3)
+        res = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": place, "format": "json", "limit": 1},
+            headers={"User-Agent": "intel-system/1.0"},
+            timeout=3
+        )
         data = res.json()
         if data:
             return (float(data[0]["lat"]), float(data[0]["lon"]))
@@ -47,17 +48,19 @@ def extract_location(text: str):
 
     try:
         doc = nlp(text)
-        # Collect all location entities, prioritize GPE (countries/cities) over LOC
+
+        # Prioritize GPE (countries, cities, states) over generic LOC
         candidates = [ent.text for ent in doc.ents if ent.label_ == "GPE"]
         candidates += [ent.text for ent in doc.ents if ent.label_ == "LOC"]
 
-        # Skip overly short/generic tokens
-        candidates = [c for c in candidates if len(c) > 2]
+        # Filter out very short or purely numeric tokens
+        candidates = [c for c in candidates if len(c) > 2 and not c.isnumeric()]
 
         for place in candidates:
             coords = geocode_place(place)
             if coords:
                 return coords
+
     except Exception as e:
         print(f"⚠️ Location extraction error: {e}")
 
@@ -67,33 +70,48 @@ def extract_location(text: str):
 def classify_event(text: str) -> str:
     """
     Classify event severity based on keyword matching.
+    Uses whole-word matching to reduce false positives.
     Returns 'critical', 'warning', or 'info'.
     """
-    text = text.lower()
+    import re
+    text_lower = text.lower()
 
+    def has_word(word):
+        return bool(re.search(rf'\b{re.escape(word)}\b', text_lower))
+
+    # CRITICAL: direct violence / major military events
     critical_keywords = [
-        "war", "nuclear", "missile", "explosion", "attack", "strike",
-        "killed", "dead", "bombing", "invaded", "coup", "massacre"
-    ]
-    warning_keywords = [
-        "military", "tension", "conflict", "threat", "protest",
-        "sanction", "troops", "armed", "hostage", "crisis"
+        "war", "nuclear", "missile", "airstrike", "air strike",
+        "bombing", "bombed", "explosion", "exploded", "attack",
+        "coup", "massacre", "invasion", "invaded", "assassinated",
+        "mass shooting", "killed in", "dead in", "casualties"
     ]
 
-    if any(w in text for w in critical_keywords):
-        return "critical"
-    elif any(w in text for w in warning_keywords):
-        return "warning"
+    # WARNING: tensions, military posturing, political crisis
+    warning_keywords = [
+        "military", "troops", "conflict", "sanction", "sanctions",
+        "hostage", "armed", "protest", "crisis", "threat", "threatens",
+        "clashes", "clashed", "detained", "arrested", "sentenced",
+        "trial", "gang", "cartel", "smuggling", "refugee", "displaced"
+    ]
+
+    for w in critical_keywords:
+        if w in text_lower:
+            return "critical"
+
+    for w in warning_keywords:
+        if has_word(w):
+            return "warning"
+
     return "info"
 
 
-# ─── ML Hotspot Prediction (scikit-learn) ───────────────────────────────────
+# ── ML Hotspot Prediction ────────────────────────────────────────────────────
 
 def train_model(events: list):
     """
-    Train a simple KMeans clustering model on event coordinates
-    to identify geographic hotspots.
-    Returns trained model or None if not enough data.
+    Train KMeans clustering on event coordinates to identify hotspots.
+    Returns trained model or None.
     """
     if not events or len(events) < 3:
         return None
@@ -108,11 +126,10 @@ def train_model(events: list):
         if len(coords) < 3:
             return None
 
-        X = numpy_array(coords)
         k = min(3, len(coords))
         model = KMeans(n_clusters=k, random_state=42, n_init=10)
-        model.fit(X)
-        print(f"✅ KMeans trained with {len(coords)} events, {k} clusters")
+        model.fit(np.array(coords))
+        print(f"✅ KMeans trained: {len(coords)} events, {k} clusters")
         return model
 
     except Exception as e:
@@ -120,16 +137,10 @@ def train_model(events: list):
         return None
 
 
-def numpy_array(data):
-    """Helper to create numpy array without top-level numpy import."""
-    import numpy as np
-    return np.array(data)
-
-
 def predict_hotspot(model, events: list):
     """
-    Use trained KMeans model to find the most active geographic cluster.
-    Returns dict with lat/lng of predicted hotspot, or None.
+    Find the most active geographic cluster center.
+    Returns dict {lat, lng} or None.
     """
     if model is None or not events:
         return None
@@ -143,10 +154,9 @@ def predict_hotspot(model, events: list):
         if not coords:
             return None
 
-        # Find cluster with most points
         X = np.array(coords)
-        labels = model.predict(X)
-        most_common = max(set(labels.tolist()), key=labels.tolist().count)
+        labels = model.predict(X).tolist()
+        most_common = max(set(labels), key=labels.count)
         center = model.cluster_centers_[most_common]
 
         return {"lat": round(center[0], 4), "lng": round(center[1], 4)}
