@@ -97,11 +97,12 @@ JUNK_ACTORS = {
     "STUDENT", "JUDGE", "JURY", "LAWYER", "PROSECUTOR",
     "PRODUCER", "ACTOR", "MICROSOFT", "GOOGLE", "FACEBOOK",
     "ROBBER", "MAGISTRATE", "CITIZEN", "GANG", "HIGH COURT",
+    "SERIAL KILLER", "THE US", "ARSONIST", "EQUALITY STATE",
     "CHAMBER", "CONGRESS", "PARLIAMENT", "COMMITTEE",
 }
 
 # Minimum articles to filter single-source noise
-MIN_ARTICLES = 3
+MIN_ARTICLES = 5
 
 # Countries with high domestic noise — require real actors
 HIGH_NOISE_COUNTRIES = {"US", "CA", "AS", "UK", "AU", "EI"}
