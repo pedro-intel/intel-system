@@ -45,6 +45,9 @@ COUNTRY_CODES = {
     "UY": "Uruguay", "UZ": "Uzbekistan", "VE": "Venezuela", "VM": "Vietnam",
     "YM": "Yemen", "ZA": "Zambia", "ZI": "Zimbabwe", "GQ": "Equatorial Guinea",
     "BH": "Bahrain", "PG": "Papua New Guinea", "FJ": "Fiji",
+    "JE": "Jersey", "GY": "Guyana", "PP": "Papua New Guinea",
+    "BP": "Solomon Islands", "TD": "Chad", "PA": "Paraguay",
+    "NZ": "New Zealand", "SN": "Singapore", "CG": "Congo",
 }
 
 # GDELT v2 CAMEO event codes we care about
@@ -187,6 +190,13 @@ def download_gdelt_events(url: str) -> list:
                     if event_code.startswith(code):
                         severity = sev
                         break
+
+                # Skip pure domestic US law enforcement events (too noisy)
+                if country_code == "US" and severity == "critical":
+                    skip_actors = {"POLICE", "GUNMAN", "VOTER", "KING", "WORKER",
+                                   "RESIDENT", "STUDENT", "JUDGE", "JURY", "LAWYER"}
+                    if actor1.upper() in skip_actors and not actor2:
+                        continue
 
                 if not severity:
                     continue
