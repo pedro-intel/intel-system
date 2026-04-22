@@ -159,7 +159,7 @@ def get_events_since(hours: int = 24) -> list:
             cur.execute("""
                 SELECT lat, lng, message, type, time
                 FROM events
-                WHERE time >= NOW() - INTERVAL '%s hours'
+                WHERE time::timestamp >= NOW() - INTERVAL '1 hour' * %s
                 ORDER BY time ASC
             """, (hours,))
         else:
