@@ -49,7 +49,7 @@ COUNTRY_CODES = {
     "BP": "Solomon Islands", "MU": "Mauritius", "MV": "Maldives",
     "LI": "Liberia", "MR": "Mauritania", "MT": "Malta", "WE": "West Bank",
     "EK": "Ecuador", "BC": "Botswana", "SB": "Serbia",
-    "CK": "Cayman Islands", "JM": "Jamaica", "TT": "Trinidad and Tobago",
+    "CK": "Cayman Islands", "JM": "Jamaica",
     "BB": "Barbados", "LC": "Saint Lucia", "VC": "Saint Vincent",
     "DO": "Dominican Republic", "CJ": "Cayman Islands",
 }
@@ -110,6 +110,16 @@ JUNK_ACTORS = {
     # Other artifacts
     "ADMINISTRATION", "ARMED GROUP", "THE US",
     "EQUALITY STATE", "NEW BRUNSWICK", "HIGH COURT",
+    # News agencies
+    "REUTERS", "AP", "AFP", "BBC", "CNN", "STATE NEWS AGENCY",
+    "NEWS AGENCY", "PRESS", "WIRE SERVICE",
+    # Nationality adjectives (too generic)
+    "CHINESE", "BRITISH", "AMERICAN", "EUROPEAN", "RUSSIAN",
+    "IRANIAN", "ISRAELI", "PAKISTANI", "INDIAN", "FRENCH",
+    # Other generic terms
+    "SOVEREIGN", "AUTHORITIES", "NATO", "DEFECTOR",
+    "DISTRICT COURT", "SUPREME COURT", "NATIONAL ELECTORAL COMMISSION",
+    "KILLERS", "KILLER", "TANKER", "NAVAL UNIT",
 }
 
 # Country names — if actor = country name, it's redundant
