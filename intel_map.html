@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SENTINEL // Global Intelligence Monitor</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -62,11 +64,7 @@
     font-size: 11px;
   }
 
-  .live-badge {
-    display: flex; align-items: center; gap: 6px;
-    color: var(--accent2);
-    font-size: 11px;
-  }
+  .live-badge { display: flex; align-items: center; gap: 6px; color: var(--accent2); font-size: 11px; }
   .live-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--accent2);
@@ -76,24 +74,16 @@
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.7); }
   }
-  .live-dot.red { background: var(--crit); animation: none; }
+  .live-dot.red    { background: var(--crit); animation: none; }
   .live-dot.yellow { background: var(--warn); animation: none; }
 
   #clock { color: var(--text); letter-spacing: 2px; font-size: 13px; }
-
   .stat { text-align: center; }
   .stat .val { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--accent); }
   .stat .lbl { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
 
   /* ── MAIN LAYOUT ── */
-  .main {
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  /* ── MAP ── */
+  .main { display: grid; grid-template-columns: 1fr 320px; flex: 1; overflow: hidden; }
   #map { width: 100%; height: 100%; }
 
   /* ── RIGHT PANEL ── */
@@ -104,7 +94,6 @@
     flex-direction: column;
     overflow: hidden;
   }
-
   .panel-header {
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
@@ -113,63 +102,53 @@
     justify-content: space-between;
     flex-shrink: 0;
   }
-  .panel-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 9px;
-    letter-spacing: 3px;
-    color: var(--accent);
-    text-transform: uppercase;
-  }
-  #event-count {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    color: var(--dim);
-  }
+  .panel-title { font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 3px; color: var(--accent); }
+  #event-count { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
 
-  /* Filter buttons */
-  .filters {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
-  }
+  .filters { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; flex-shrink: 0; }
   .filter-btn {
-    flex: 1;
-    padding: 5px 0;
+    flex: 1; padding: 5px 0;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: 3px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; cursor: pointer;
+    transition: all 0.2s; letter-spacing: 1px;
+  }
+  .filter-btn.all  { color: var(--text); }
+  .filter-btn.crit { color: var(--crit); }
+  .filter-btn.warn { color: var(--warn); }
+  .filter-btn.info { color: var(--info); }
+  .filter-btn.active { background: rgba(0,200,255,0.1); border-color: var(--accent); color: var(--accent); }
+
+  /* Cluster toggle button */
+  .cluster-toggle {
+    margin: 8px 16px;
+    padding: 6px 0;
     border: 1px solid var(--border);
     background: transparent;
     border-radius: 3px;
     font-family: 'Share Tech Mono', monospace;
     font-size: 10px;
     cursor: pointer;
-    transition: all 0.2s;
+    color: var(--accent);
     letter-spacing: 1px;
+    transition: all 0.2s;
+    flex-shrink: 0;
   }
-  .filter-btn.all    { color: var(--text); }
-  .filter-btn.crit   { color: var(--crit); }
-  .filter-btn.warn   { color: var(--warn); }
-  .filter-btn.info   { color: var(--info); }
-  .filter-btn.active { background: rgba(0,200,255,0.1); border-color: var(--accent); color: var(--accent); }
+  .cluster-toggle:hover { background: rgba(0,200,255,0.1); }
+  .cluster-toggle.off { color: var(--dim); border-color: var(--dim); }
 
-  /* Event feed */
-  #event-feed {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  }
+  #event-feed { flex: 1; overflow-y: auto; padding: 8px; }
   #event-feed::-webkit-scrollbar { width: 4px; }
   #event-feed::-webkit-scrollbar-track { background: transparent; }
   #event-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
   .event-card {
-    padding: 10px 12px;
-    margin-bottom: 6px;
-    border-radius: 4px;
-    border-left: 3px solid var(--dim);
+    padding: 10px 12px; margin-bottom: 6px;
+    border-radius: 4px; border-left: 3px solid var(--dim);
     background: rgba(255,255,255,0.02);
-    cursor: pointer;
-    transition: background 0.15s;
+    cursor: pointer; transition: background 0.15s;
     animation: slideIn 0.3s ease;
   }
   .event-card:hover { background: rgba(0,200,255,0.05); }
@@ -181,53 +160,21 @@
   .event-card.warning  { border-left-color: var(--warn); }
   .event-card.info     { border-left-color: var(--info); }
 
-  .event-type {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
+  .event-type { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
   .event-card.critical .event-type { color: var(--crit); }
   .event-card.warning  .event-type { color: var(--warn); }
   .event-card.info     .event-type { color: var(--info); }
+  .event-msg { font-size: 12px; color: var(--text); line-height: 1.4; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .event-time { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); }
 
-  .event-msg {
-    font-size: 12px;
-    color: var(--text);
-    line-height: 1.4;
-    margin-bottom: 4px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .event-time {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    color: var(--dim);
-  }
-
-  /* Status bar */
   .status-bar-bottom {
-    padding: 8px 16px;
-    border-top: 1px solid var(--border);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    color: var(--dim);
-    flex-shrink: 0;
-    display: flex;
-    justify-content: space-between;
+    padding: 8px 16px; border-top: 1px solid var(--border);
+    font-family: 'Share Tech Mono', monospace; font-size: 10px;
+    color: var(--dim); flex-shrink: 0; display: flex; justify-content: space-between;
   }
 
-  /* Leaflet popup override */
-  .leaflet-popup-content-wrapper {
-    background: #070d18;
-    border: 1px solid #0d2238;
-    border-radius: 4px;
-    color: #c8dff0;
-    font-family: 'IBM Plex Sans', sans-serif;
-  }
+  /* ── LEAFLET POPUP ── */
+  .leaflet-popup-content-wrapper { background: #070d18; border: 1px solid #0d2238; border-radius: 4px; color: #c8dff0; font-family: 'IBM Plex Sans', sans-serif; }
   .leaflet-popup-tip { background: #070d18; }
   .leaflet-popup-content { margin: 12px 16px; font-size: 13px; line-height: 1.6; }
   .popup-type { font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 2px; margin-bottom: 6px; }
@@ -235,6 +182,30 @@
   .popup-type.warning  { color: #ffb800; }
   .popup-type.info     { color: #4da6ff; }
   .popup-time { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #3a5a78; margin-top: 6px; }
+
+  /* ── CUSTOM CLUSTER STYLES ── */
+  .marker-cluster-small,
+  .marker-cluster-medium,
+  .marker-cluster-large {
+    background-clip: padding-box;
+    border-radius: 50%;
+  }
+  .marker-cluster-small  { background-color: rgba(77,166,255,0.3); }
+  .marker-cluster-medium { background-color: rgba(255,184,0,0.3);  }
+  .marker-cluster-large  { background-color: rgba(255,62,62,0.3);  }
+  .marker-cluster-small  div { background-color: rgba(77,166,255,0.7);  }
+  .marker-cluster-medium div { background-color: rgba(255,184,0,0.7);   }
+  .marker-cluster-large  div { background-color: rgba(255,62,62,0.7);   }
+  .marker-cluster div {
+    width: 30px; height: 30px;
+    margin-left: 5px; margin-top: 5px;
+    text-align: center; border-radius: 15px;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px; font-weight: 700;
+    color: #fff;
+    line-height: 30px;
+  }
+  .marker-cluster { border: 2px solid rgba(255,255,255,0.2); }
 </style>
 </head>
 <body>
@@ -271,6 +242,10 @@
       <button class="filter-btn info" onclick="setFilter('info')">INFO</button>
     </div>
 
+    <button class="cluster-toggle" id="cluster-btn" onclick="toggleClustering()">
+      ⬡ CLUSTERING: ON
+    </button>
+
     <div id="event-feed"></div>
 
     <div class="status-bar-bottom">
@@ -281,6 +256,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 // ── MAP SETUP ────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: false }).setView([20, 10], 2);
@@ -293,9 +269,35 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
+// ── CLUSTERING SETUP ─────────────────────────────────────────
+let clusteringEnabled = true;
+
+const clusterGroup = L.markerClusterGroup({
+  maxClusterRadius: 60,
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: true,
+
+  // Color clusters based on size
+  iconCreateFunction: function(cluster) {
+    const count = cluster.getChildCount();
+    let size = 'small';
+    if (count >= 20) size = 'large';
+    else if (count >= 8) size = 'medium';
+
+    return L.divIcon({
+      html: `<div><span>${count}</span></div>`,
+      className: `marker-cluster marker-cluster-${size}`,
+      iconSize: L.point(40, 40)
+    });
+  }
+});
+
+map.addLayer(clusterGroup);
+
 // ── STATE ────────────────────────────────────────────────────
-let allEvents = [];
-let markers   = [];
+let allEvents    = [];
+let allMarkers   = []; // stores {marker, event} for filter/toggle
 let currentFilter = 'all';
 let stats = { total: 0, critical: 0, warning: 0, info: 0 };
 
@@ -314,7 +316,7 @@ function makeMarker(event) {
     fillOpacity: 0.75,
     weight: 1.5,
     opacity: 0.9
-  }).addTo(map);
+  });
 
   const typeLabel = (event.type || 'info').toUpperCase();
   const time = event.time ? new Date(event.time).toUTCString().slice(0, 25) : '';
@@ -325,6 +327,13 @@ function makeMarker(event) {
     <div class="popup-time">${time}</div>
   `);
 
+  // Add to cluster group (or map directly if clustering off)
+  if (clusteringEnabled) {
+    clusterGroup.addLayer(marker);
+  } else {
+    marker.addTo(map);
+  }
+
   // Pulse animation for new critical events
   if (event.type === 'critical') {
     const pulse = L.circleMarker([event.lat, event.lng], {
@@ -334,12 +343,41 @@ function makeMarker(event) {
     const anim = setInterval(() => {
       r = growing ? r + 0.4 : r - 0.4;
       if (r > radius + 8) growing = false;
-      if (r < radius)     { clearInterval(anim); pulse.remove(); return; }
+      if (r < radius) { clearInterval(anim); pulse.remove(); return; }
       pulse.setRadius(r);
     }, 50);
   }
 
   return marker;
+}
+
+// ── CLUSTER TOGGLE ───────────────────────────────────────────
+function toggleClustering() {
+  clusteringEnabled = !clusteringEnabled;
+  const btn = document.getElementById('cluster-btn');
+
+  // Remove everything
+  clusterGroup.clearLayers();
+  allMarkers.forEach(({ marker }) => {
+    if (map.hasLayer(marker)) map.removeLayer(marker);
+  });
+
+  // Re-add all markers to correct layer
+  allMarkers.forEach(({ marker }) => {
+    if (clusteringEnabled) {
+      clusterGroup.addLayer(marker);
+    } else {
+      marker.addTo(map);
+    }
+  });
+
+  if (clusteringEnabled) {
+    btn.textContent = '⬡ CLUSTERING: ON';
+    btn.classList.remove('off');
+  } else {
+    btn.textContent = '⬡ CLUSTERING: OFF';
+    btn.classList.add('off');
+  }
 }
 
 // ── EVENT FEED CARD ──────────────────────────────────────────
@@ -358,18 +396,17 @@ function addEventCard(event, marker) {
   `;
 
   card.onclick = () => {
-    map.setView([event.lat, event.lng], 5, { animate: true });
-    marker.openPopup();
+    map.setView([event.lat, event.lng], 6, { animate: true });
+    // Unspiderfy and open popup
+    clusterGroup.zoomToShowLayer(marker, () => marker.openPopup());
   };
 
   feed.insertBefore(card, feed.firstChild);
 
-  // Apply current filter visibility
   if (currentFilter !== 'all' && event.type !== currentFilter) {
     card.style.display = 'none';
   }
 
-  // Cap feed at 200 cards
   while (feed.children.length > 200) {
     feed.removeChild(feed.lastChild);
   }
@@ -409,10 +446,10 @@ function updateStats(type) {
 
 // ── PROCESS INCOMING EVENT ───────────────────────────────────
 function processEvent(data) {
-  if (!data.lat || !data.lng) return;
+  if (!data.lat || !data.lng || data.ping) return;
 
   const marker = makeMarker(data);
-  markers.push(marker);
+  allMarkers.push({ marker, event: data });
   allEvents.push(data);
 
   addEventCard(data, marker);
@@ -430,10 +467,9 @@ function connect() {
   const status = document.getElementById('ws-status');
 
   ws.onopen = () => {
-    dot.className = 'live-dot';       // green + pulsing
+    dot.className = 'live-dot';
     status.textContent = 'LIVE';
     clearTimeout(reconnectTimer);
-    console.log('✅ WebSocket connected');
   };
 
   ws.onmessage = (e) => {
@@ -454,7 +490,6 @@ function connect() {
     dot.className = 'live-dot yellow';
     status.textContent = 'RECONNECTING';
     reconnectTimer = setTimeout(connect, 5000);
-    console.log('🔴 WS closed — reconnecting in 5s');
   };
 }
 
