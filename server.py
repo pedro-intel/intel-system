@@ -236,7 +236,7 @@ async def intel_loop():
                 new_count += 1
                 await asyncio.sleep(0.2)
 
-            print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 6h...")
+            print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 5min...")
             await asyncio.sleep(21600)
 
     except Exception as e:

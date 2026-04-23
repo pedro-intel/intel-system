@@ -1,5 +1,5 @@
 # news_ingest.py
-# Dual-source: ACLED (primary) + GDELT CSV (fallback)
+# Multi-source: ACLED (primary) → GDELT CSV (secondary) → Google News + Nitter RSS (fast breaking news)
 
 import os
 import requests
@@ -7,19 +7,70 @@ import csv
 import zipfile
 import io
 import re
+import feedparser
 from datetime import datetime, timedelta
 
-# ── ACLED ─────────────────────────────────────────────────────────────────────
+# ── ACLED CONFIG ──────────────────────────────────────────────────────────────
 ACLED_EMAIL    = os.getenv("ACLED_EMAIL")
 ACLED_PASSWORD = os.getenv("ACLED_PASSWORD")
 TOKEN_URL      = "https://acleddata.com/oauth/token"
 API_URL        = "https://acleddata.com/api/acled/read"
 _token_cache   = {"token": None, "expires_at": None}
-_acled_ok      = None  # None=untested, True=works, False=denied
+_acled_ok      = None
 
 HEADERS = {"User-Agent": "intel-system/1.0"}
 
-# ── GDELT ─────────────────────────────────────────────────────────────────────
+# ── GOOGLE NEWS RSS FEEDS ─────────────────────────────────────────────────────
+# These update every few minutes with breaking news
+GOOGLE_NEWS_FEEDS = [
+    # Breaking conflict/war news
+    "https://news.google.com/rss/search?q=war+attack+conflict+military&hl=en&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=airstrike+missile+bombing+explosion&hl=en&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=killed+civilians+troops+battle&hl=en&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=coup+protest+riot+sanction&hl=en&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=earthquake+flood+disaster+hurricane&hl=en&gl=US&ceid=US:en",
+]
+
+# ── NITTER RSS (X/Twitter accounts as RSS) ────────────────────────────────────
+# Breaking news accounts — multiple Nitter instances as fallbacks
+NITTER_INSTANCES = [
+    "https://nitter.poast.org",
+    "https://nitter.privacydev.net",
+    "https://nitter.net",
+    "https://nitter.cz",
+]
+
+# Major breaking news Twitter/X accounts
+NEWS_ACCOUNTS = [
+    # Major outlets
+    "Reuters",
+    "BBCBreaking",
+    "AP",
+    "AFP",
+    "AJEnglish",        # Al Jazeera
+    "BNONews",          # Breaking news aggregator
+    "middleeasteye",
+    # Fast breaking news
+    "disclosetv",
+    "sentdefender",
+    # Conflict/OSINT
+    "FaytuksNetworks",
+    "Faytuks",
+    "clashreport",
+    "AMK_Mapping_",
+    "Tammuz_Intel",
+    "hey_itsmyturn",
+    "lookner",
+    "InsiderGeo",
+    "AZ_Intel_",
+    "Global_Mil_Info",
+    "Osinttechnical",
+    # Regional analysts
+    "RALee85",
+    "spectatorindex",
+]
+
+# ── GDELT CONFIG ──────────────────────────────────────────────────────────────
 GDELT_LASTUPDATE = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
 
 COUNTRY_CODES = {
@@ -55,6 +106,7 @@ COUNTRY_CODES = {
 }
 
 COUNTRY_NAME_TO_CODE = {v.lower(): k for k, v in COUNTRY_CODES.items()}
+COUNTRY_NAMES = set(COUNTRY_CODES.values())
 
 RELEVANT_CAMEO = {
     "183":"critical","184":"critical","185":"critical","186":"critical",
@@ -88,38 +140,42 @@ JUNK_ACTORS = {
     "SOVEREIGN","AUTHORITIES","NATO","DEFECTOR","TANKER","NAVAL UNIT",
     "KILLERS","KILLER","DETECTIVE","CAREGIVER","TELEVISION","PRODUCER",
     "HONDA","SAMSUNG","BANGKOK","LORRAINE","TENANTS","LIEUTENANT",
+    "MANUFACTURER","EMPLOYEE","BELIEVER","GOVERNOR",
 }
 
-COUNTRY_NAMES = set(COUNTRY_CODES.values())
-MIN_ARTICLES  = 5
-HIGH_NOISE    = {"US","CA","AS","UK","AU","EI","FR","IT","SP"}
-
+MIN_ARTICLES = 5
+HIGH_NOISE   = {"US","CA","AS","UK","AU","EI","FR","IT","SP"}
 SUSPECT_LOCS = {"Samara","Africa","Europe","Asia","America","New Brunswick","Odessa"}
 
 COL_EVENTCODE=26; COL_ACTOR1=6; COL_ACTOR2=16; COL_GEO_NAME=53
 COL_GEO_CC=54; COL_GEO_ADM1=55; COL_LAT=56; COL_LNG=57; COL_ARTS=33
 
+# Keywords for RSS relevance filtering
+CONFLICT_KEYWORDS = [
+    "war","attack","conflict","military","missile","airstrike","bombing","explosion",
+    "troops","killed","casualties","battle","fighting","offensive","ceasefire",
+    "protest","riot","coup","sanction","nuclear","hostage","kidnap","massacre",
+    "earthquake","flood","hurricane","tsunami","disaster","crisis","refugee",
+]
 
-# ── ACLED FUNCTIONS ───────────────────────────────────────────────────────────
+
+# ── ACLED ─────────────────────────────────────────────────────────────────────
 
 def get_acled_token() -> str | None:
     global _acled_ok
     if _acled_ok is False:
-        return None  # Already know it doesn't work
-
+        return None
     now = datetime.utcnow()
     if _token_cache["token"] and _token_cache["expires_at"] and now < _token_cache["expires_at"]:
         return _token_cache["token"]
-
     if not ACLED_EMAIL or not ACLED_PASSWORD:
         return None
-
     try:
         print("🔑 Authenticating with ACLED...")
         res = requests.post(TOKEN_URL,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
-            data={"username": ACLED_EMAIL, "password": ACLED_PASSWORD,
-                  "grant_type": "password", "client_id": "acled", "scope": "authenticated"},
+            data={"username":ACLED_EMAIL,"password":ACLED_PASSWORD,
+                  "grant_type":"password","client_id":"acled","scope":"authenticated"},
             timeout=15)
         if res.status_code == 200:
             token = res.json().get("access_token")
@@ -127,22 +183,10 @@ def get_acled_token() -> str | None:
             _token_cache["expires_at"] = now + timedelta(hours=23)
             print("✅ ACLED authenticated")
             return token
-        print(f"⚠️ ACLED auth failed: {res.status_code}")
         return None
     except Exception as e:
         print(f"⚠️ ACLED auth error: {e}")
         return None
-
-
-def classify_acled(event_type: str, sub_event: str) -> str:
-    et, se = event_type.lower(), sub_event.lower()
-    if et in {"battles","explosions/remote violence","violence against civilians"}: return "critical"
-    if se in {"armed clash","attack","air/drone strike","shelling/artillery/missile attack",
-              "suicide bomb","grenade","shooting","abduction/forced disappearance","mass killing"}: return "critical"
-    if et in {"riots","strategic developments"}: return "warning"
-    if se in {"violent demonstration","looting/property destruction","forceful seizure",
-              "arrest","siege"}: return "warning"
-    return "info"
 
 
 def get_acled_events() -> list:
@@ -150,81 +194,192 @@ def get_acled_events() -> list:
     token = get_acled_token()
     if not token:
         return []
-
     since = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
     today = datetime.utcnow().strftime("%Y-%m-%d")
-
     try:
-        print(f"🌍 Fetching ACLED events since {since}...")
         res = requests.get(API_URL, params={
-            "_format": "json",
-            "event_date": f"{since}|{today}",
-            "event_date_where": "BETWEEN",
-            "fields": "event_id_cnty|event_date|event_type|sub_event_type|actor1|actor2|country|location|latitude|longitude|fatalities",
-            "limit": 500,
-        }, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}, timeout=30)
-
+            "_format":"json","event_date":f"{since}|{today}",
+            "event_date_where":"BETWEEN",
+            "fields":"event_id_cnty|event_date|event_type|sub_event_type|actor1|actor2|country|location|latitude|longitude|fatalities",
+            "limit":500,
+        }, headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}, timeout=30)
         if res.status_code == 403:
-            print("⚠️ ACLED: Access denied — falling back to GDELT")
+            print("⚠️ ACLED: Access denied — falling back")
             _acled_ok = False
             return []
-
         data = res.json()
         if data.get("status") != 200:
-            print(f"⚠️ ACLED status: {data.get('status')}")
             return []
-
         _acled_ok = True
-        raw = data.get("data", [])
-        print(f"✅ ACLED returned {len(raw)} events")
-
+        raw = data.get("data",[])
         processed = []
         seen = set()
         for e in raw:
             try:
                 lat = float(e.get("latitude") or 0)
                 lng = float(e.get("longitude") or 0)
-                if lat == 0 and lng == 0: continue
-                if not (-90 <= lat <= 90) or not (-180 <= lng <= 180): continue
-
-                country   = e.get("country", "Unknown")
-                location  = e.get("location", "")
-                actor1    = e.get("actor1", "").strip()
-                actor2    = e.get("actor2", "").strip()
-                et        = e.get("event_type", "")
-                se        = e.get("sub_event_type", "")
-                fatalities= int(e.get("fatalities", 0) or 0)
-                severity  = classify_acled(et, se)
-                place     = f"{location}, {country}" if location and location != country else country
-
-                if actor1 and actor2:
-                    msg = f"{actor1} — {se.lower()} involving {actor2} in {place}"
-                elif actor1:
-                    msg = f"{actor1} — {se.lower()} in {place}"
-                else:
-                    msg = f"{se.capitalize()} in {place}"
-
-                if fatalities > 0:
-                    msg += f" ({fatalities} {'fatality' if fatalities==1 else 'fatalities'})"
-
+                if lat==0 and lng==0: continue
+                if not (-90<=lat<=90) or not (-180<=lng<=180): continue
+                country  = e.get("country","Unknown")
+                location = e.get("location","")
+                actor1   = e.get("actor1","").strip()
+                actor2   = e.get("actor2","").strip()
+                et       = e.get("event_type","")
+                se       = e.get("sub_event_type","")
+                fats     = int(e.get("fatalities",0) or 0)
+                sev      = "critical" if et.lower() in {"battles","explosions/remote violence","violence against civilians"} else "warning" if et.lower() in {"riots","strategic developments"} else "info"
+                place    = f"{location}, {country}" if location and location!=country else country
+                if actor1 and actor2: msg = f"{actor1} — {se.lower()} involving {actor2} in {place}"
+                elif actor1: msg = f"{actor1} — {se.lower()} in {place}"
+                else: msg = f"{se.capitalize()} in {place}"
+                if fats > 0: msg += f" ({fats} {'fatality' if fats==1 else 'fatalities'})"
                 key = f"{round(lat,2)},{round(lng,2)}:{et}"
                 if key in seen: continue
                 seen.add(key)
-
-                processed.append({"lat":lat,"lng":lng,"message":msg,"type":severity,
-                                   "location":country,"source":"ACLED"})
-            except (ValueError, TypeError):
-                continue
-
-        processed.sort(key=lambda x: {"critical":0,"warning":1,"info":2}.get(x["type"],2))
+                processed.append({"lat":lat,"lng":lng,"message":msg,"type":sev,"location":country,"source":"ACLED"})
+            except: continue
+        processed.sort(key=lambda x:{"critical":0,"warning":1,"info":2}.get(x["type"],2))
         return processed[:100]
-
     except Exception as e:
         print(f"⚠️ ACLED fetch error: {e}")
         return []
 
 
-# ── GDELT FUNCTIONS ───────────────────────────────────────────────────────────
+# ── GOOGLE NEWS RSS ───────────────────────────────────────────────────────────
+
+def is_relevant(text: str) -> bool:
+    t = text.lower()
+    return any(k in t for k in CONFLICT_KEYWORDS)
+
+
+def classify_text(text: str) -> str:
+    t = text.lower()
+    critical = ["killed","dead","casualties","bombing","airstrike","missile","explosion",
+                "massacre","attack","battle","fighting","war","nuclear","coup"]
+    warning  = ["military","troops","conflict","sanction","protest","crisis",
+                "threat","arrest","detained","ceasefire","refugee","displaced"]
+    if any(w in t for w in critical): return "critical"
+    if any(w in t for w in warning):  return "warning"
+    return "info"
+
+
+def extract_location_from_text(text: str) -> tuple | None:
+    """Try to find a country/location in text and geocode it."""
+    text_lower = text.lower()
+    # Check against known country names (longest match first)
+    for name in sorted(COUNTRY_NAMES, key=len, reverse=True):
+        if name.lower() in text_lower:
+            # Get approximate center coords from our lookup
+            from ml_model import lookup_country_coords
+            coords = lookup_country_coords(name)
+            if coords:
+                return coords, name
+    return None
+
+
+def fetch_google_news() -> list:
+    """Fetch breaking news from Google News RSS feeds."""
+    items = []
+    seen_titles = set()
+
+    for url in GOOGLE_NEWS_FEEDS:
+        try:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:15]:
+                title   = entry.get("title", "").strip()
+                summary = entry.get("summary", "").strip()
+                text    = f"{title} {summary}"
+
+                if not title or title in seen_titles:
+                    continue
+                if not is_relevant(text):
+                    continue
+
+                seen_titles.add(title)
+                items.append({"title": title, "summary": summary, "source": "Google News"})
+
+        except Exception as e:
+            print(f"⚠️ Google News RSS error: {e}")
+
+    print(f"📰 Google News: {len(items)} relevant articles")
+    return items
+
+
+def fetch_nitter_rss() -> list:
+    """Fetch breaking news posts from major news X accounts via Nitter RSS."""
+    items = []
+    seen_titles = set()
+
+    for account in NEWS_ACCOUNTS:
+        fetched = False
+        for instance in NITTER_INSTANCES:
+            try:
+                url  = f"{instance}/{account}/rss"
+                feed = feedparser.parse(url)
+
+                if not feed.entries:
+                    continue
+
+                for entry in feed.entries[:10]:
+                    title = entry.get("title", "").strip()
+                    # Remove RT prefixes and clean up
+                    title = re.sub(r'^R to @\w+:\s*', '', title)
+                    title = re.sub(r'https?://\S+', '', title).strip()
+
+                    if not title or title in seen_titles:
+                        continue
+                    if not is_relevant(title):
+                        continue
+
+                    seen_titles.add(title)
+                    items.append({"title": title, "summary": "", "source": f"@{account}"})
+
+                fetched = True
+                break  # Got data from this instance, move to next account
+
+            except Exception:
+                continue  # Try next Nitter instance
+
+        if not fetched:
+            pass  # All instances failed for this account, skip silently
+
+    print(f"🐦 Nitter RSS: {len(items)} relevant posts")
+    return items
+
+
+def process_rss_items(items: list) -> list:
+    """Convert RSS items to map events using NLP location extraction."""
+    events = []
+    seen   = set()
+
+    for item in items:
+        title = item["title"]
+        text  = f"{title} {item.get('summary','')}"
+
+        result = extract_location_from_text(text)
+        if not result:
+            continue
+
+        coords, country = result
+        lat, lng = coords
+
+        if title in seen:
+            continue
+        seen.add(title)
+
+        events.append({
+            "lat":      lat,
+            "lng":      lng,
+            "message":  title[:200],
+            "type":     classify_text(text),
+            "location": country,
+            "source":   item.get("source", "RSS"),
+        })
+
+    return events
+
+
+# ── GDELT ─────────────────────────────────────────────────────────────────────
 
 def resolve_country(code: str, location_name: str, adm1: str = "") -> str:
     if code and code.upper() in COUNTRY_CODES:
@@ -252,7 +407,7 @@ def is_junk(actor: str, country: str) -> bool:
 
 
 def get_action(code: str) -> str:
-    for l in [3,2]:
+    for l in [3, 2]:
         p = code[:l]
         if p in CODE_DESCRIPTIONS: return CODE_DESCRIPTIONS[p]
     return "military activity"
@@ -264,15 +419,12 @@ def build_gdelt_message(event: dict) -> str:
     actor1   = event.get("actor1","").title()
     actor2   = event.get("actor2","").title()
     action   = event.get("action","military activity")
-
-    place = (location if location and location.lower()!=country.lower()
-             and len(location)>3 and location.title() not in COUNTRY_NAMES
-             and location not in SUSPECT_LOCS else country)
-
+    place    = (location if location and location.lower()!=country.lower()
+                and len(location)>3 and location.title() not in COUNTRY_NAMES
+                and location not in SUSPECT_LOCS else country)
     a1 = "" if is_junk(actor1.upper(), country) else actor1
     a2 = "" if is_junk(actor2.upper(), country) else actor2
     if a1 and a2 and a1.lower()==a2.lower(): a2=""
-
     if a1 and a2: return f"{a1} — {action} involving {a2} in {place}"
     elif a1:      return f"{a1} — {action} in {place}"
     else:         return f"{action.capitalize()} in {place}"
@@ -298,7 +450,6 @@ def download_gdelt(url: str) -> list:
         with zipfile.ZipFile(io.BytesIO(res.content)) as z:
             with z.open(z.namelist()[0]) as f:
                 content = f.read().decode("utf-8")
-
         events = []
         for row in csv.reader(io.StringIO(content), delimiter="\t"):
             try:
@@ -312,33 +463,26 @@ def download_gdelt(url: str) -> list:
                 actor2       = row[COL_ACTOR2].strip()
                 num_arts_str = row[COL_ARTS].strip()
                 num_arts     = int(num_arts_str) if num_arts_str.isdigit() else 0
-
                 if not lat_str or not lng_str: continue
                 lat = float(lat_str); lng = float(lng_str)
                 if lat==0 and lng==0: continue
                 if not (-90<=lat<=90) or not (-180<=lng<=180): continue
                 if num_arts < MIN_ARTICLES: continue
-
                 severity = None
                 for code, sev in RELEVANT_CAMEO.items():
                     if event_code.startswith(code): severity=sev; break
                 if not severity: continue
-
                 location_name = row[COL_GEO_NAME].strip()
                 country_name  = resolve_country(country_code, location_name, adm1_code)
                 action        = get_action(event_code)
-
                 if country_code in HIGH_NOISE:
                     if is_junk(actor1, country_name) and is_junk(actor2, country_name):
                         continue
-
                 events.append({"lat":lat,"lng":lng,"location":location_name,
                     "country_name":country_name,"actor1":actor1,"actor2":actor2,
                     "event_code":event_code,"severity":severity,"action":action,
                     "num_articles":num_arts})
-            except (ValueError, IndexError):
-                continue
-
+            except (ValueError, IndexError): continue
         print(f"✅ Parsed {len(events)} GDELT events")
         return events
     except Exception as e:
@@ -346,35 +490,71 @@ def download_gdelt(url: str) -> list:
         return []
 
 
-def get_gdelt_events() -> list:
-    # Try ACLED first
-    if _acled_ok is not False:
-        acled = get_acled_events()
-        if acled:
-            print(f"✅ Using ACLED data ({len(acled)} events)")
-            return acled
-        if _acled_ok is False:
-            print("⚠️ ACLED unavailable — falling back to GDELT")
-
-    # Fall back to GDELT
+def get_gdelt_fallback() -> list:
     url = get_gdelt_url()
     if not url: return []
     raw = download_gdelt(url)
     if not raw: return []
-
     raw.sort(key=lambda x: x["num_articles"], reverse=True)
     processed = []
     seen_locs = set()
     for e in raw:
-        if len(processed) >= 75: break
+        if len(processed) >= 60: break
         key = f"{e['country_name']}:{e['event_code'][:2]}"
         if key in seen_locs: continue
         seen_locs.add(key)
         processed.append({"lat":e["lat"],"lng":e["lng"],
             "message":build_gdelt_message(e),"type":e["severity"],
             "location":e["country_name"],"source":"GDELT"})
-
     return processed
+
+
+# ── MAIN ENTRY POINT ──────────────────────────────────────────────────────────
+
+def get_gdelt_events() -> list:
+    """
+    Priority order:
+    1. ACLED (human-verified, best quality) — if approved
+    2. GDELT CSV (geo-tagged, 15-min updates) — always available
+    3. Google News RSS (fastest, 2-5 min) — supplements GDELT
+    4. Nitter RSS (X breaking news) — supplements when available
+    """
+    all_events = []
+
+    # Try ACLED first
+    if _acled_ok is not False:
+        acled = get_acled_events()
+        if acled:
+            print(f"✅ Using ACLED ({len(acled)} events)")
+            # Still add RSS for breaking news even with ACLED
+            rss = _get_rss_events()
+            return (acled + rss)[:150]
+
+    # GDELT fallback
+    print("🌐 Using GDELT + RSS sources")
+    gdelt  = get_gdelt_fallback()
+    rss    = _get_rss_events()
+    all_events = gdelt + rss
+
+    # Deduplicate by location proximity
+    seen = set()
+    final = []
+    for e in all_events:
+        key = f"{round(e['lat'],1)},{round(e['lng'],1)}"
+        if key not in seen:
+            seen.add(key)
+            final.append(e)
+
+    print(f"✅ Total: {len(final)} events ({len(gdelt)} GDELT + {len(rss)} RSS)")
+    return final[:150]
+
+
+def _get_rss_events() -> list:
+    """Fetch and process all RSS sources."""
+    items = []
+    items += fetch_google_news()
+    items += fetch_nitter_rss()
+    return process_rss_items(items)
 
 
 def get_news(max_records: int = 50) -> list:
