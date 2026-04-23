@@ -198,7 +198,7 @@ STALE_PATTERNS = [
     r'\|\s*(history|facts|timeline|summary|casualties|combatants)',  # Encyclopedia articles
     r'^\d+/',                    # Thread parts like "17/China also..."
     r'how many people have been', # Historical questions
-    r'years? into.*'s invasion', # Anniversary retrospectives
+    r"years? into.*'s invasion", # Anniversary retrospectives
     r'a look at the war by the numbers',
     r'history of the',
     r'facts about',
@@ -408,8 +408,7 @@ def items_to_events(items: list) -> list:
 
     for item in items:
         # Clean newlines and extra whitespace
-        text = re.sub(r'[
-]+', ' ', item["text"])
+        text = item["text"].replace("\n", " ").replace("\r", " ")
         text = re.sub(r'\s{2,}', ' ', text).strip()
         result = extract_country(text)
         if not result: continue
