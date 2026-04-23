@@ -65,7 +65,8 @@ COUNTRY_COORDS = {
     "Mongolia":(46.9,103.8),"Morocco":(31.8,-7.1),"Mozambique":(-18.7,35.5),
     "Nepal":(28.4,84.1),"Netherlands":(52.1,5.3),"New Zealand":(-40.9,174.9),
     "Nicaragua":(12.9,-85.2),"Niger":(17.6,8.1),"Nigeria":(9.1,8.7),
-    "North Korea":(40.3,127.5),"Norway":(60.5,8.5),"Pakistan":(30.4,69.3),
+    "North Korea":(40.0,127.0),
+    "DPRK":(40.0,127.0),"Norway":(60.5,8.5),"Pakistan":(30.4,69.3),
     "Palestine":(31.9,35.2),"Paraguay":(-23.4,-58.4),"Peru":(-9.2,-75.0),
     "Philippines":(12.9,121.8),"Poland":(51.9,19.1),"Portugal":(39.4,-8.2),
     "Qatar":(25.4,51.2),"Romania":(45.9,24.9),"Russia":(61.5,105.3),
@@ -87,6 +88,46 @@ COUNTRY_COORDS = {
 }
 
 COUNTRY_NAMES = sorted(COUNTRY_COORDS.keys(), key=len, reverse=True)
+
+# Aliases for common alternate names
+COUNTRY_ALIASES = {
+    "dprk": "North Korea",
+    "rok": "South Korea", 
+    "uae": "UAE",
+    "usa": "United States",
+    "uk": "United Kingdom",
+    "drc": "DR Congo",
+    "prc": "China",
+    "kherson": "Ukraine",
+    "zaporizhzhia": "Ukraine",
+    "donbas": "Ukraine",
+    "donetsk": "Ukraine",
+    "mariupol": "Ukraine",
+    "bakhmut": "Ukraine",
+    "kharkiv": "Ukraine",
+    "kyiv": "Ukraine",
+    "gaza strip": "Gaza",
+    "west bank": "West Bank",
+    "occupied territories": "Palestine",
+    "strait of hormuz": "Iran",
+    "red sea": "Yemen",
+    "sahel": "Mali",
+    "idlib": "Syria",
+    "aleppo": "Syria",
+    "mosul": "Iraq",
+    "fallujah": "Iraq",
+    "kabul": "Afghanistan",
+    "kandahar": "Afghanistan",
+    "tehran": "Iran",
+    "jerusalem": "Israel",
+    "tel aviv": "Israel",
+    "beirut": "Lebanon",
+    "damascus": "Syria",
+    "tripoli": "Libya",
+    "khartoum": "Sudan",
+    "taipei": "Taiwan",
+    "pyongyang": "North Korea",
+}
 
 # Aggressor countries — when these appear as subject, look for the target instead
 # e.g. "Russia strikes Ukraine" → Ukraine, not Russia
@@ -152,8 +193,29 @@ WARNING_WORDS = [
 ]
 
 
+# Patterns that indicate stale/non-breaking content to filter out
+STALE_PATTERNS = [
+    r'\|\s*(history|facts|timeline|summary|casualties|combatants)',  # Encyclopedia articles
+    r'^\d+/',                    # Thread parts like "17/China also..."
+    r'how many people have been', # Historical questions
+    r'years? into.*'s invasion', # Anniversary retrospectives
+    r'a look at the war by the numbers',
+    r'history of the',
+    r'facts about',
+    r'what you need to know about',
+    r'everything you need to know',
+    r'explainer:',
+    r'timeline of',
+]
+
+STALE_RE = [re.compile(p, re.IGNORECASE) for p in STALE_PATTERNS]
+
 def is_relevant(text: str) -> bool:
     t = text.lower()
+    # Filter stale/encyclopedia content
+    for pattern in STALE_RE:
+        if pattern.search(text):
+            return False
     return any(k in t for k in CONFLICT_KEYWORDS)
 
 
@@ -168,10 +230,11 @@ def extract_country(text: str) -> tuple | None:
     """
     Smart geocoding: find the EVENT LOCATION, not just any country mention.
     Priority:
-    1. Target of action verbs (e.g. "strikes Ukraine" → Ukraine)
-    2. Country after location prepositions (e.g. "in Gaza" → Gaza)
-    3. Aggressor → known target mapping
-    4. First country mentioned
+    1. Aliases (city names, region names → country)
+    2. Target of action verbs (e.g. "strikes Ukraine" → Ukraine)
+    3. Country after location prepositions (e.g. "in Gaza" → Gaza)
+    4. Aggressor → known target mapping
+    5. First country mentioned
     """
     import random
 
@@ -179,10 +242,22 @@ def extract_country(text: str) -> tuple | None:
         return lat + random.uniform(-1.2, 1.2), lng + random.uniform(-1.2, 1.2)
 
     def find_country_in(text_fragment: str) -> str | None:
+        # Check aliases first
+        frag_lower = text_fragment.lower()
+        for alias, country in COUNTRY_ALIASES.items():
+            if alias in frag_lower:
+                return country
         for name in COUNTRY_NAMES:
             if re.search(r'\b' + re.escape(name) + r'\b', text_fragment, re.IGNORECASE):
                 return name
         return None
+    
+    # Strategy 0: check aliases in full text first (city/region names)
+    text_lower = text.lower()
+    for alias, country in COUNTRY_ALIASES.items():
+        if alias in text_lower and country in COUNTRY_COORDS:
+            lat, lng = jitter(*COUNTRY_COORDS[country])
+            return lat, lng, country
 
     # Strategy 1: target of action verb
     for m in TARGET_VERB_RE.finditer(text):
@@ -332,7 +407,10 @@ def items_to_events(items: list) -> list:
     seen_keys = set()
 
     for item in items:
-        text   = item["text"]
+        # Clean newlines and extra whitespace
+        text = re.sub(r'[
+]+', ' ', item["text"])
+        text = re.sub(r'\s{2,}', ' ', text).strip()
         result = extract_country(text)
         if not result: continue
 
