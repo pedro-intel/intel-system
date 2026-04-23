@@ -90,43 +90,62 @@ COUNTRY_COORDS = {
 COUNTRY_NAMES = sorted(COUNTRY_COORDS.keys(), key=len, reverse=True)
 
 # Aliases for common alternate names
+# City/region → country mapping (only unambiguous multi-char aliases)
 COUNTRY_ALIASES = {
-    "dprk": "North Korea",
-    "rok": "South Korea", 
-    "uae": "UAE",
-    "usa": "United States",
-    "uk": "United Kingdom",
-    "drc": "DR Congo",
-    "prc": "China",
-    "kherson": "Ukraine",
+    # Conflict zones
     "zaporizhzhia": "Ukraine",
+    "zaporizhia": "Ukraine",
     "donbas": "Ukraine",
+    "donbass": "Ukraine",
     "donetsk": "Ukraine",
     "mariupol": "Ukraine",
     "bakhmut": "Ukraine",
     "kharkiv": "Ukraine",
+    "kherson": "Ukraine",
     "kyiv": "Ukraine",
+    "odesa": "Ukraine",
+    "luhansk": "Ukraine",
     "gaza strip": "Gaza",
+    "northern gaza": "Gaza",
+    "beit lahiya": "Gaza",
+    "rafah": "Gaza",
+    "khan younis": "Gaza",
     "west bank": "West Bank",
-    "occupied territories": "Palestine",
+    "ramallah": "West Bank",
+    "jenin": "West Bank",
     "strait of hormuz": "Iran",
+    "hormuz": "Iran",
+    "tehran": "Iran",
+    "isfahan": "Iran",
     "red sea": "Yemen",
+    "hodeidah": "Yemen",
+    "sanaa": "Yemen",
     "sahel": "Mali",
     "idlib": "Syria",
     "aleppo": "Syria",
+    "damascus": "Syria",
+    "deir ez-zor": "Syria",
     "mosul": "Iraq",
     "fallujah": "Iraq",
+    "baghdad": "Iraq",
+    "basra": "Iraq",
     "kabul": "Afghanistan",
     "kandahar": "Afghanistan",
-    "tehran": "Iran",
+    "helmand": "Afghanistan",
     "jerusalem": "Israel",
     "tel aviv": "Israel",
+    "haifa": "Israel",
     "beirut": "Lebanon",
-    "damascus": "Syria",
     "tripoli": "Libya",
+    "benghazi": "Libya",
     "khartoum": "Sudan",
+    "darfur": "Sudan",
     "taipei": "Taiwan",
     "pyongyang": "North Korea",
+    "tuapse": "Russia",
+    "vilnyansk": "Ukraine",
+    "nagorny karabakh": "Azerbaijan",
+    "nagorno-karabakh": "Azerbaijan",
 }
 
 # Aggressor countries — when these appear as subject, look for the target instead
@@ -206,6 +225,15 @@ STALE_PATTERNS = [
     r'everything you need to know',
     r'explainer:',
     r'timeline of',
+    r'global conflict tracker',    # CFR encyclopedia pages
+    r'\| global conflict tracker',
+    r'instability in \w+\s*\|',    # CFR instability pages
+    r'drug sales',                  # Crime news, not conflict
+    r'drug bust',
+    r'arrested over alleged',
+    r'charged with possession',
+    r'how the .* has divided',      # Opinion/analysis pieces
+    r'map thread for \w+ \d+',     # Daily map threads (old ones)
 ]
 
 STALE_RE = [re.compile(p, re.IGNORECASE) for p in STALE_PATTERNS]
@@ -255,7 +283,9 @@ def extract_country(text: str) -> tuple | None:
     # Strategy 0: check aliases in full text first (city/region names)
     text_lower = text.lower()
     for alias, country in COUNTRY_ALIASES.items():
-        if alias in text_lower and country in COUNTRY_COORDS:
+        # Use word boundary check to avoid partial matches
+        pattern = r'\b' + re.escape(alias) + r'\b'
+        if re.search(pattern, text_lower) and country in COUNTRY_COORDS:
             lat, lng = jitter(*COUNTRY_COORDS[country])
             return lat, lng, country
 
