@@ -405,6 +405,7 @@
     <div class="stat"><div class="val" id="stat-total">0</div><div class="lbl">EVENTS</div></div>
     <div class="stat"><div class="val" id="stat-crit" style="color:var(--crit)">0</div><div class="lbl">CRITICAL</div></div>
     <div class="stat"><div class="val" id="stat-warn" style="color:var(--warn)">0</div><div class="lbl">WARNING</div></div>
+    <button id="sound-toggle" onclick="toggleSound()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle sound alerts">🔇 SOUND</button>
     <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">CONNECTING</span></div>
     <div id="clock">--:--:--</div>
   </div>
@@ -598,16 +599,22 @@ function closeDetail() {
   currentDetailEvent = null;
 }
 
+function openDetailByIdx(idx) {
+  const event = allEvents[idx];
+  if (event) openDetail(event);
+}
+
 // ── MAKE MARKER ───────────────────────────────────────────────────────────────
 function makeMarker(event, addToLayer=true) {
   const color=COLORS[event.type]||COLORS.info, radius=RADII[event.type]||6;
   const marker = L.circleMarker([event.lat,event.lng],{radius,color,fillColor:color,fillOpacity:.75,weight:1.5,opacity:.9});
   const time = event.time?new Date(event.time).toUTCString().slice(0,25):'';
+  const eventIdx = allEvents.length; // index before push
   marker.bindPopup(`
     <div class="popup-type ${event.type}">${(event.type||'info').toUpperCase()}</div>
     <div>${event.message}</div>
     <div class="popup-time">${time}</div>
-    <div class="popup-detail-btn" onclick="openDetail(${JSON.stringify(event).replace(/"/g,'&quot;')})">▸ VIEW DETAILS</div>
+    <div class="popup-detail-btn" onclick="openDetailByIdx(${eventIdx})">▸ VIEW DETAILS</div>
   `);
   marker.on('click', () => openDetail(event));
   if(addToLayer){
@@ -747,6 +754,8 @@ function updateStats(event) {
 }
 
 function processEvent(data){
+  if(data.type === 'critical') playAlert('critical');
+  else if(data.type === 'warning') playAlert('warning');
   if(!data.lat||!data.lng||data.ping)return;
   const marker=makeMarker(data);
   allMarkers.push({marker,event:data});allEvents.push(data);
@@ -918,6 +927,58 @@ document.getElementById('tl-play').addEventListener('click',()=>{if(tlPlaying)tl
 document.getElementById('tl-reset').addEventListener('click',tlReset);
 document.getElementById('tl-range').addEventListener('input',e=>{tlPause();tlIndex=parseInt(e.target.value);updateTimeLabel(tlIndex);tlShowEventsUpTo(tlIndex);});
 document.getElementById('tl-speed').addEventListener('click',()=>{tlSpeedIdx=(tlSpeedIdx+1)%SPEEDS.length;tlSpeed=SPEEDS[tlSpeedIdx];document.getElementById('tl-speed').textContent=`${tlSpeed}×`;if(tlPlaying){tlPause();tlPlay();}});
+
+
+// ── SOUND ALERTS ─────────────────────────────────────────────────────────────
+let soundEnabled = false;
+let audioCtx = null;
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById('sound-toggle');
+  btn.textContent = soundEnabled ? '🔊 SOUND' : '🔇 SOUND';
+  btn.style.color = soundEnabled ? 'var(--accent2)' : 'var(--dim)';
+  btn.style.borderColor = soundEnabled ? 'var(--accent2)' : 'var(--border)';
+
+  // Initialize AudioContext on first user interaction (browser requirement)
+  if (soundEnabled && !audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function playAlert(type) {
+  if (!soundEnabled || !audioCtx) return;
+
+  const now = audioCtx.currentTime;
+
+  if (type === 'critical') {
+    // Sharp descending two-tone alert
+    [880, 660].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, now + i * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.3);
+      osc.start(now + i * 0.15);
+      osc.stop(now + i * 0.15 + 0.3);
+    });
+  } else if (type === 'warning') {
+    // Single soft ping
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.value = 440;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  }
+}
 
 // ── WEBSOCKET ─────────────────────────────────────────────────────────────────
 let ws,reconnectTimer;

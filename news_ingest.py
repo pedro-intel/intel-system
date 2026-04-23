@@ -1,9 +1,11 @@
 # news_ingest.py
 # Sources: Google News RSS + X/Twitter accounts via Nitter RSS
+# Features: smart geocoding, deduplication, Nitter fallback handling
 
 import re
 import requests
 import feedparser
+import hashlib
 from datetime import datetime
 
 HEADERS = {"User-Agent": "intel-system/1.0"}
@@ -17,42 +19,22 @@ GOOGLE_NEWS_FEEDS = [
     "https://news.google.com/rss/search?q=earthquake+flood+disaster+hurricane&hl=en&gl=US&ceid=US:en",
 ]
 
-# ── NITTER INSTANCES (fallback chain) ─────────────────────────────────────────
+# ── NITTER INSTANCES ──────────────────────────────────────────────────────────
 NITTER_INSTANCES = [
     "https://nitter.poast.org",
     "https://nitter.privacydev.net",
     "https://nitter.net",
     "https://nitter.cz",
+    "https://nitter.1d4.us",
+    "https://nitter.kavin.rocks",
 ]
 
-# ── X ACCOUNTS TO FOLLOW ─────────────────────────────────────────────────────
 NEWS_ACCOUNTS = [
-    # Major outlets
-    "Reuters",
-    "BBCBreaking",
-    "AP",
-    "AFP",
-    "AJEnglish",
-    "BNONews",
-    "middleeasteye",
-    # Fast breaking news
-    "disclosetv",
-    "sentdefender",
-    # Conflict/OSINT
-    "FaytuksNetworks",
-    "Faytuks",
-    "clashreport",
-    "AMK_Mapping_",
-    "Tammuz_Intel",
-    "hey_itsmyturn",
-    "lookner",
-    "InsiderGeo",
-    "AZ_Intel_",
-    "Global_Mil_Info",
-    "Osinttechnical",
-    # Regional analysts
-    "RALee85",
-    "spectatorindex",
+    "Reuters", "BBCBreaking", "AP", "AFP", "AJEnglish", "BNONews",
+    "middleeasteye", "disclosetv", "sentdefender", "FaytuksNetworks",
+    "Faytuks", "clashreport", "AMK_Mapping_", "Tammuz_Intel",
+    "hey_itsmyturn", "lookner", "InsiderGeo", "AZ_Intel_",
+    "Global_Mil_Info", "Osinttechnical", "RALee85", "spectatorindex",
 ]
 
 # ── COUNTRY DATA ──────────────────────────────────────────────────────────────
@@ -99,12 +81,54 @@ COUNTRY_COORDS = {
     "United Kingdom":(55.4,-3.4),"United States":(37.1,-95.7),
     "Uruguay":(-32.5,-55.8),"Uzbekistan":(41.4,64.6),"Venezuela":(6.4,-66.6),
     "Vietnam":(14.1,108.3),"Yemen":(15.6,48.5),"Zambia":(-13.1,27.8),
-    "Zimbabwe":(-20.0,30.0),"West Bank":(31.9,35.2),"Botswana":(-22.3,24.7),
-    "Liberia":(6.4,-9.4),"Mauritania":(21.0,-10.9),"Mauritius":(-20.3,57.6),
-    "Gaza":(31.4,34.3),"Crimea":(45.3,34.0),"Kosovo":(42.6,20.9),
+    "Zimbabwe":(-20.0,30.0),"West Bank":(31.9,35.2),"Gaza":(31.4,34.3),
+    "Botswana":(-22.3,24.7),"Liberia":(6.4,-9.4),"Mauritania":(21.0,-10.9),
+    "Mauritius":(-20.3,57.6),"Crimea":(45.3,34.0),
 }
 
 COUNTRY_NAMES = sorted(COUNTRY_COORDS.keys(), key=len, reverse=True)
+
+# Aggressor countries — when these appear as subject, look for the target instead
+# e.g. "Russia strikes Ukraine" → Ukraine, not Russia
+AGGRESSOR_PATTERNS = {
+    "Russia": ["Ukraine","Syria","Georgia","Poland","Baltic","Moldova"],
+    "Israel": ["Gaza","Lebanon","Iran","Syria","West Bank","Palestine"],
+    "Iran":   ["Israel","Iraq","Syria","Yemen","Pakistan"],
+    "US":     ["Iraq","Syria","Afghanistan","Yemen","Somalia"],
+    "United States": ["Iraq","Syria","Afghanistan","Yemen","Somalia"],
+    "China":  ["Taiwan","India","Philippines","Japan"],
+    "Turkey": ["Syria","Kurdistan","Iraq","Armenia","Greece"],
+    "Saudi Arabia": ["Yemen"],
+    "India":  ["Pakistan","China"],
+    "Pakistan": ["India","Afghanistan"],
+    "Myanmar": ["Thailand","Bangladesh"],
+    "Ethiopia": ["Eritrea","Somalia","Sudan"],
+    "Azerbaijan": ["Armenia"],
+    "North Korea": ["South Korea","Japan","United States"],
+}
+
+# Action verbs indicating the following location is the TARGET
+TARGET_VERBS = [
+    "strikes?","attacks?","bombs?","bombing","invades?","invading","invasion",
+    "shells?","shelling","launches? (?:missiles?|rockets?|drones?|strikes?)",
+    "hits?","targets?","targeting","raids?","raiding","fires? (?:on|at|into|toward)",
+    "enters?","entering","crosses? into","advances? (?:on|into|toward)",
+    "kills? (?:in|near|at)","offensive (?:in|on|against|into)",
+    "operations? in","deployed? (?:to|in|near)",
+]
+
+TARGET_VERB_RE = re.compile(
+    r'(?:' + '|'.join(TARGET_VERBS) + r')\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+    re.IGNORECASE
+)
+
+# Prepositions that usually introduce the location of the event
+LOCATION_PREPS = ["in", "near", "at", "inside", "across", "throughout",
+                  "within", "outside", "around", "from", "into", "toward"]
+LOCATION_PREP_RE = re.compile(
+    r'\b(?:' + '|'.join(LOCATION_PREPS) + r')\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+    re.IGNORECASE
+)
 
 # ── CLASSIFICATION ────────────────────────────────────────────────────────────
 CONFLICT_KEYWORDS = [
@@ -118,7 +142,7 @@ CONFLICT_KEYWORDS = [
 CRITICAL_WORDS = [
     "killed","dead","casualties","bombing","airstrike","missile","explosion",
     "massacre","attack","battle","fighting","war","nuclear","hostage","kidnap",
-    "shelling","drone strike","wounded","clash","offensive","assault",
+    "shelling","drone strike","wounded","clash","offensive","assault","fires",
 ]
 
 WARNING_WORDS = [
@@ -141,17 +165,100 @@ def classify_text(text: str) -> str:
 
 
 def extract_country(text: str) -> tuple | None:
-    """Find the first country name mentioned in text and return (lat, lng, name)."""
-    text_lower = text.lower()
+    """
+    Smart geocoding: find the EVENT LOCATION, not just any country mention.
+    Priority:
+    1. Target of action verbs (e.g. "strikes Ukraine" → Ukraine)
+    2. Country after location prepositions (e.g. "in Gaza" → Gaza)
+    3. Aggressor → known target mapping
+    4. First country mentioned
+    """
+    import random
+
+    def jitter(lat, lng):
+        return lat + random.uniform(-1.2, 1.2), lng + random.uniform(-1.2, 1.2)
+
+    def find_country_in(text_fragment: str) -> str | None:
+        for name in COUNTRY_NAMES:
+            if re.search(r'\b' + re.escape(name) + r'\b', text_fragment, re.IGNORECASE):
+                return name
+        return None
+
+    # Strategy 1: target of action verb
+    for m in TARGET_VERB_RE.finditer(text):
+        candidate = m.group(1).strip()
+        country = find_country_in(candidate)
+        if country and country in COUNTRY_COORDS:
+            lat, lng = jitter(*COUNTRY_COORDS[country])
+            return lat, lng, country
+
+    # Strategy 2: country after location preposition
+    for m in LOCATION_PREP_RE.finditer(text):
+        candidate = m.group(1).strip()
+        country = find_country_in(candidate)
+        if country and country in COUNTRY_COORDS:
+            lat, lng = jitter(*COUNTRY_COORDS[country])
+            return lat, lng, country
+
+    # Strategy 3: aggressor → known target
+    for aggressor, targets in AGGRESSOR_PATTERNS.items():
+        if re.search(r'\b' + re.escape(aggressor) + r'\b', text, re.IGNORECASE):
+            for target in targets:
+                if re.search(r'\b' + re.escape(target) + r'\b', text, re.IGNORECASE):
+                    if target in COUNTRY_COORDS:
+                        lat, lng = jitter(*COUNTRY_COORDS[target])
+                        return lat, lng, target
+
+    # Strategy 4: first country mentioned
     for name in COUNTRY_NAMES:
-        if name.lower() in text_lower:
-            coords = COUNTRY_COORDS.get(name)
-            if coords:
-                # Add small random offset so markers don't all stack on country center
-                import random
-                lat = coords[0] + random.uniform(-1.5, 1.5)
-                lng = coords[1] + random.uniform(-1.5, 1.5)
+        if re.search(r'\b' + re.escape(name) + r'\b', text, re.IGNORECASE):
+            if name in COUNTRY_COORDS:
+                lat, lng = jitter(*COUNTRY_COORDS[name])
                 return lat, lng, name
+
+    return None
+
+
+def dedup_key(text: str) -> str:
+    """Generate a deduplication key from headline text."""
+    # Normalize: lowercase, remove punctuation, collapse spaces
+    normalized = re.sub(r'[^\w\s]', '', text.lower())
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    # Use first 80 chars as key to catch slightly different versions of same story
+    return normalized[:80]
+
+
+# ── NITTER HEALTH CHECK ───────────────────────────────────────────────────────
+_nitter_health = {}  # instance → {"ok": bool, "checked": datetime}
+
+def check_nitter_instance(instance: str) -> bool:
+    """Check if a Nitter instance is responding."""
+    now = datetime.utcnow()
+    health = _nitter_health.get(instance, {})
+
+    # Re-check every 30 minutes
+    if health.get("checked") and (now - health["checked"]).seconds < 1800:
+        return health.get("ok", False)
+
+    try:
+        res = requests.get(f"{instance}/Reuters/rss", headers=HEADERS, timeout=8)
+        ok = res.status_code == 200 and len(res.content) > 500
+        _nitter_health[instance] = {"ok": ok, "checked": now}
+        if ok: print(f"✅ Nitter instance working: {instance}")
+        else:  print(f"⚠️ Nitter instance down: {instance} ({res.status_code})")
+        return ok
+    except Exception as e:
+        _nitter_health[instance] = {"ok": False, "checked": now}
+        print(f"⚠️ Nitter instance unreachable: {instance}")
+        return False
+
+
+def get_working_nitter() -> str | None:
+    """Return first working Nitter instance."""
+    for instance in NITTER_INSTANCES:
+        if check_nitter_instance(instance):
+            return instance
+    print("⚠️ All Nitter instances down — skipping X RSS")
     return None
 
 
@@ -164,11 +271,11 @@ def fetch_google_news() -> list:
             feed = feedparser.parse(url)
             for entry in feed.entries[:20]:
                 title = entry.get("title","").strip()
-                # Clean Google News titles (remove " - Source" suffix)
                 title = re.sub(r'\s+-\s+[\w\s]+$', '', title).strip()
-                if not title or title in seen: continue
-                if not is_relevant(title): continue
-                seen.add(title)
+                if not title or not is_relevant(title): continue
+                key = dedup_key(title)
+                if key in seen: continue
+                seen.add(key)
                 items.append({"text": title, "source": "Google News"})
         except Exception as e:
             print(f"⚠️ Google News feed error: {e}")
@@ -180,47 +287,39 @@ def fetch_google_news() -> list:
 def fetch_nitter_rss() -> list:
     items = []
     seen = set()
-    working_instance = None
+
+    instance = get_working_nitter()
+    if not instance:
+        return []
 
     for account in NEWS_ACCOUNTS:
-        fetched = False
-        instances = ([working_instance] + NITTER_INSTANCES) if working_instance else NITTER_INSTANCES
+        try:
+            url  = f"{instance}/{account}/rss"
+            feed = feedparser.parse(url)
+            if not feed.entries: continue
 
-        for instance in instances:
-            if not instance: continue
-            try:
-                url  = f"{instance}/{account}/rss"
-                feed = feedparser.parse(url)
-                if not feed.entries: continue
+            for entry in feed.entries[:8]:
+                title = entry.get("title","").strip()
+                title = re.sub(r'^R to @\w+:\s*', '', title)
+                title = re.sub(r'https?://\S+', '', title).strip()
+                title = re.sub(r'@\w+\s*', '', title).strip()
+                if not title or not is_relevant(title): continue
+                key = dedup_key(title)
+                if key in seen: continue
+                seen.add(key)
+                items.append({"text": title, "source": f"@{account}"})
 
-                working_instance = instance  # Cache working instance
-                for entry in feed.entries[:8]:
-                    title = entry.get("title","").strip()
-                    # Clean up RT/reply prefixes and URLs
-                    title = re.sub(r'^R to @\w+:\s*', '', title)
-                    title = re.sub(r'https?://\S+', '', title).strip()
-                    title = re.sub(r'@\w+', '', title).strip()
-                    if not title or title in seen: continue
-                    if not is_relevant(title): continue
-                    seen.add(title)
-                    items.append({"text": title, "source": f"@{account}"})
+        except Exception:
+            continue
 
-                fetched = True
-                break
-            except Exception:
-                continue
-
-        if not fetched:
-            pass  # Silent fail — try next account
-
-    print(f"🐦 Nitter RSS: {len(items)} relevant posts")
+    print(f"🐦 Nitter (@{instance.split('//')[1]}): {len(items)} relevant posts")
     return items
 
 
 # ── PROCESS TO MAP EVENTS ─────────────────────────────────────────────────────
 def items_to_events(items: list) -> list:
     events = []
-    seen_coords = set()
+    seen_keys = set()
 
     for item in items:
         text   = item["text"]
@@ -228,32 +327,33 @@ def items_to_events(items: list) -> list:
         if not result: continue
 
         lat, lng, country = result
-        coord_key = f"{round(lat,1)},{round(lng,1)}"
-        if coord_key in seen_coords: continue
-        seen_coords.add(coord_key)
+
+        # Deduplicate by country + first 6 words of text
+        words    = text.lower().split()[:6]
+        dedup    = f"{country}:{''.join(words)}"
+        if dedup in seen_keys: continue
+        seen_keys.add(dedup)
 
         events.append({
-            "lat":      lat,
-            "lng":      lng,
+            "lat":      round(lat, 4),
+            "lng":      round(lng, 4),
             "message":  text[:200],
             "type":     classify_text(text),
             "location": country,
             "source":   item["source"],
         })
 
-    # Sort critical first
     events.sort(key=lambda x: {"critical":0,"warning":1,"info":2}.get(x["type"],2))
     return events
 
 
 # ── MAIN ENTRY POINT ──────────────────────────────────────────────────────────
 def get_gdelt_events() -> list:
-    """Fetch from Google News RSS + Nitter X accounts."""
     print("📡 Fetching Google News + X RSS...")
     items  = fetch_google_news()
     items += fetch_nitter_rss()
     events = items_to_events(items)
-    print(f"✅ {len(events)} geo-tagged events from RSS")
+    print(f"✅ {len(events)} geo-tagged events ready")
     return events[:150]
 
 
