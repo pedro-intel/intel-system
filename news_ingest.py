@@ -300,9 +300,19 @@ def fetch_nitter_rss() -> list:
 
             for entry in feed.entries[:8]:
                 title = entry.get("title","").strip()
+                title = re.sub(r'^RT by\s*:?\s*', '', title)
                 title = re.sub(r'^R to @\w+:\s*', '', title)
                 title = re.sub(r'https?://\S+', '', title).strip()
                 title = re.sub(r'@\w+\s*', '', title).strip()
+                title = re.sub(r'#\w+\s*', '', title).strip()
+                # Trim at sentence break if too long
+                if len(title) > 180:
+                    for sep in ['. ', '! ', '? ']:
+                        idx = title[:160].rfind(sep)
+                        if idx > 60: title = title[:idx+1]; break
+                    else:
+                        title = title[:180].rsplit(' ', 1)[0] + '...'
+
                 if not title or not is_relevant(title): continue
                 key = dedup_key(title)
                 if key in seen: continue
