@@ -1,5 +1,5 @@
 app = "sentinel-system"
-primary_region = "iad"
+primary_region = "ewr"
 
 [build]
 
@@ -11,7 +11,7 @@ primary_region = "iad"
   min_machines_running = 1
 
 [[vm]]
-  memory = "1gb"
+  memory = "256mb"
   cpu_kind = "shared"
   cpus = 1
 
