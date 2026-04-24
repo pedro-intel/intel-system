@@ -214,26 +214,45 @@ WARNING_WORDS = [
 
 # Patterns that indicate stale/non-breaking content to filter out
 STALE_PATTERNS = [
-    r'\|\s*(history|facts|timeline|summary|casualties|combatants)',  # Encyclopedia articles
-    r'^\d+/',                    # Thread parts like "17/China also..."
-    r'how many people have been', # Historical questions
-    r"years? into.*'s invasion", # Anniversary retrospectives
-    r'a look at the war by the numbers',
-    r'history of the',
-    r'facts about',
-    r'what you need to know about',
-    r'everything you need to know',
-    r'explainer:',
-    r'timeline of',
-    r'global conflict tracker',    # CFR encyclopedia pages
-    r'\| global conflict tracker',
-    r'instability in \w+\s*\|',    # CFR instability pages
-    r'drug sales',                  # Crime news, not conflict
-    r'drug bust',
-    r'arrested over alleged',
-    r'charged with possession',
-    r'how the .* has divided',      # Opinion/analysis pieces
-    r'map thread for \w+ \d+',     # Daily map threads (old ones)
+    # Encyclopedia/reference articles
+    r"\|\s*(history|facts|timeline|summary|casualties|combatants)",
+    r"history of the", r"facts about", r"what you need to know",
+    r"everything you need to know", r"explainer:", r"timeline of",
+    r"global conflict tracker", r"instability in \w+",
+    # Analysis/retrospective articles
+    r"^why did\b", r"^how did\b", r"^how the\b", r"^what is\b",
+    r"^explained[,:]", r"^explainer[,:]",
+    r"\btimeline[:\-]", r"\bkey moments\b",
+    r"in its first (four|two|three|five|six|eight|ten|\d+) weeks?",
+    r"unfolded in (its|the)",
+    r"\bwar maps?[:\-]", r"\bconflict maps?[:\-]",
+    r"\bcollection[:\-]",
+    r"\bq&a[:\-]", r"\bexpert q",
+    r"\bprimer on\b", r"\btargeting primer\b",
+    r"\boperational progress\b",
+    r"^the war in \w+[:\-]",
+    r"how long could", r"how long will",
+    r"\b2025-2026\b",
+    r"\bmap thread for\b",
+    # Economic/financial war coverage (not military)
+    r"\bwar.*boost.*pric", r"\bwar.*push.*pric",
+    r"\bwar.*inflation\b", r"\bprice war\b", r"\btrade war\b",
+    r"\bbusiness activity\b.*war", r"\bwar.*business activity\b",
+    r"\boil.*recover\b", r"\bcrude output\b",
+    r"\bfewer people will receive aid\b",
+    r"higher fuel costs",
+    # Denials/statements (handled in classify but also filter here)
+    r"rules out (striking|using|nuclear)",
+    # Crime/irrelevant
+    r"drug sales", r"drug bust", r"arrested over alleged",
+    r"charged with possession",
+    # Thread fragments
+    r"^\d+/",
+    # Pope/religion unrelated
+    r"\bpope\b.*photo", r"carries a photo",
+    # Climate/unrelated political
+    r"climate change off the agenda",
+    r"not speaking for the",
 ]
 
 STALE_RE = [re.compile(p, re.IGNORECASE) for p in STALE_PATTERNS]
