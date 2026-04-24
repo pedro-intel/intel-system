@@ -221,7 +221,8 @@ STALE_PATTERNS = [
     r"global conflict tracker", r"instability in \w+",
     # Analysis/retrospective articles
     r"^why did\b", r"^how did\b", r"^how the\b", r"^what is\b",
-    r"^explained[,:]", r"^explainer[,:]",
+    r"^explained[,:\s]", r"^explainer[,:\s]",
+    r"\|\s*explained\b", r"\|\s*explainer\b",  # "X | Explained"
     r"\btimeline[:\-]", r"\bkey moments\b",
     r"in its first (four|two|three|five|six|eight|ten|\d+) weeks?",
     r"unfolded in (its|the)",

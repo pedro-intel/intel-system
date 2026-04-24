@@ -261,6 +261,10 @@ async def watchdog():
 @app.on_event("startup")
 async def startup_event():
     print("🚀 Starting SENTINEL...")
-    load_model()
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, load_model)
+    except Exception as e:
+        print(f"⚠️ spaCy load failed (continuing without it): {e}")
     asyncio.create_task(intel_loop())
     asyncio.create_task(watchdog())
