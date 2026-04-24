@@ -254,6 +254,38 @@ STALE_PATTERNS = [
     # Climate/unrelated political
     r"climate change off the agenda",
     r"not speaking for the",
+    # Death toll / retrospective
+    r"how many people have been killed",
+    r"death toll (?:in|of) (?:the )?(?:\w+ )?war",
+    r"killed in the \w+ war\?",
+    r"^\d+ years? into",
+    r"a look at the war by the numbers",
+    r"the deadliest (?:european|african|middle east)",
+    r"dramatic shift in",
+    r"controversial death toll",
+    # Background/analysis
+    r"pentagon cut its civilian",
+    r"ben roberts.smith",
+    r"former (?:australian|british|american) soldier",
+    r"rapidly assessing the impact",
+    r"hurricane matthew",
+    # Historical references
+    r"tanker war.*1980s",
+    r"anniversary of",
+    r"marks the \d+(?:st|nd|rd|th) anniversary",
+    r"today marks the \d+",
+    r"in the 1980s",
+    # Day X of war (daily summary articles, not breaking news)
+    r"^day \d+ of (?:the )?(?:iran|ukraine|gaza|sudan) war",
+    # Oil/economic war coverage
+    r"iran war has exposed how heavily",
+    r"depend(?:s|ence) on oil and gas",
+    r"cuts \$\d+.* funding due to iran war",
+    r"rising oil prices",
+    # Military alliance/political (not kinetic)
+    r"uk joins france.*poland.*greece",
+    r"eu military plans",
+    r"nato allies.*lack of support",
 ]
 
 STALE_RE = [re.compile(p, re.IGNORECASE) for p in STALE_PATTERNS]
