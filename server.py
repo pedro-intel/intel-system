@@ -237,7 +237,7 @@ async def intel_loop():
                 await asyncio.sleep(0.2)
 
             print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 10min...")
-            await asyncio.sleep(21600)
+            await asyncio.sleep(600)
 
     except Exception as e:
         print(f"❌ intel_loop crashed: {e}")
