@@ -25,7 +25,10 @@ def get_conn():
     if USE_POSTGRES:
         # PostgreSQL: create a new connection per thread
         if not hasattr(_local, "pg_conn") or _local.pg_conn is None or _local.pg_conn.closed:
-            _local.pg_conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+            try:
+                _local.pg_conn = psycopg2.connect(DATABASE_URL, sslmode="require", connect_timeout=10)
+            except Exception:
+                _local.pg_conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
         return _local.pg_conn
     else:
         # SQLite: thread-local connection
