@@ -236,7 +236,7 @@ async def intel_loop():
                 new_count += 1
                 await asyncio.sleep(0.2)
 
-            print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 5min...")
+            print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 10min...")
             await asyncio.sleep(21600)
 
     except Exception as e:
@@ -248,8 +248,19 @@ async def intel_loop():
         print("⚠️ intel_loop exited")
 
 
+async def watchdog():
+    """Restart intel_loop if it crashes."""
+    global _loop_running
+    while True:
+        if not _loop_running:
+            print("🔄 Watchdog: restarting intel loop...")
+            asyncio.create_task(intel_loop())
+        await asyncio.sleep(60)  # Check every minute
+
+
 @app.on_event("startup")
 async def startup_event():
     print("🚀 Starting SENTINEL...")
     load_model()
     asyncio.create_task(intel_loop())
+    asyncio.create_task(watchdog())
