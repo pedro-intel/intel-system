@@ -393,6 +393,46 @@
 
 
   /* ── FEEDS PANEL ── */
+  .markets-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+  }
+  .markets-controls button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    padding: 3px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    transition: all .2s;
+  }
+  .markets-controls button.active { border-color: var(--accent); color: var(--accent); }
+  .markets-controls button:hover { border-color: var(--accent); color: var(--accent); }
+  .rotation-indicator {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+  }
+  .rot-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background .3s;
+  }
+  .rot-dot.active { background: var(--accent); }
+  .market-page { display: none; height: 100%; }
+  .market-page.active { display: grid; }
   .feeds-panel {
     position: absolute;
     top: 50px;
@@ -491,15 +531,70 @@
 
   <!-- Markets tab -->
   <div class="feeds-content active" id="feeds-markets">
-    <div class="feeds-grid">
+    <div class="markets-controls">
+      <button onclick="prevMarketPage()" title="Previous">◀ PREV</button>
+      <button id="rot-toggle" class="active" onclick="toggleRotation()" title="Auto rotate">⟳ AUTO</button>
+      <button onclick="nextMarketPage()" title="Next">NEXT ▶</button>
+      <span style="margin-left:8px;">PAGE <span id="rot-page">1</span>/3</span>
+      <div class="rotation-indicator">
+        <div class="rot-dot active" id="dot-0"></div>
+        <div class="rot-dot" id="dot-1"></div>
+        <div class="rot-dot" id="dot-2"></div>
+      </div>
+      <span style="margin-left:auto;font-size:9px;opacity:.5;">AUTO-ROTATES EVERY 10s</span>
+    </div>
+    <div style="flex:1;overflow:hidden;position:relative;">
+
+    <!-- Page 1: Equities -->
+    <div class="market-page active feeds-grid" id="mpage-0" style="grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;">
       <!-- S&P 500 -->
-      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3ASPXUSD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%2C%22largeChartUrl%22%3A%22%22%7D"></iframe>
-      <!-- Brent Oil -->
-      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AUKOIL%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C165%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C165%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3ASPXUSD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
       <!-- DAX -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3AGRXEUR%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- FTSE 100 -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3AUKXGBP%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Nikkei 225 -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3AJPXJPY%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C255%2C150%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C255%2C150%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Shanghai Composite -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22SSE%3A000001%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C50%2C50%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C50%2C50%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Gold -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AGOLD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C215%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C215%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Brent Oil -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AUKOIL%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C165%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C165%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
       <!-- WTI Crude -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AUSOIL%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C100%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C100%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- S&P 500 -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3ASPXUSD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- DAX -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3AGRXEUR%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- FTSE 100 -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3AUKXGBP%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Nikkei -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3AJPXJPY%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C255%2C150%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C255%2C150%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Shanghai -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22SSE%3A000001%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C50%2C50%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C50%2C50%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Gold -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AGOLD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C215%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C215%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+    </div>
+
+    <!-- Page 2: Energy & Commodities -->
+    <div class="market-page feeds-grid" id="mpage-1" style="grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;">
+      <!-- Brent Oil -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AUKOIL%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C165%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C165%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- WTI Crude -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AUSOIL%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C100%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C100%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Natural Gas -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3ANGAS%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(100%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(100%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+      <!-- Gold -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AGOLD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C215%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C215%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D"></iframe>
+    </div>
+
+    <!-- Page 3: Full Ticker Tape -->
+    <div class="market-page" id="mpage-2" style="flex-direction:column;padding:16px;gap:12px;">
+      <iframe src="https://s.tradingview.com/embed-widget/ticker-tape/?locale=en#%7B%22symbols%22%3A%5B%7B%22proName%22%3A%22FOREXCOM%3ASPXUSD%22%2C%22title%22%3A%22S%26P%20500%22%7D%2C%7B%22proName%22%3A%22FOREXCOM%3AGRXEUR%22%2C%22title%22%3A%22DAX%22%7D%2C%7B%22proName%22%3A%22FOREXCOM%3AUKXGBP%22%2C%22title%22%3A%22FTSE%22%7D%2C%7B%22proName%22%3A%22FOREXCOM%3AJPXJPY%22%2C%22title%22%3A%22Nikkei%22%7D%2C%7B%22proName%22%3A%22TVC%3AGOLD%22%2C%22title%22%3A%22Gold%22%7D%2C%7B%22proName%22%3A%22TVC%3AUKOIL%22%2C%22title%22%3A%22Brent%22%7D%2C%7B%22proName%22%3A%22TVC%3AUSOIL%22%2C%22title%22%3A%22WTI%22%7D%2C%7B%22proName%22%3A%22TVC%3ANGAS%22%2C%22title%22%3A%22Nat%20Gas%22%7D%2C%7B%22proName%22%3A%22SSE%3A000001%22%2C%22title%22%3A%22Shanghai%22%7D%5D%2C%22showSymbolLogo%22%3Atrue%2C%22colorTheme%22%3A%22dark%22%2C%22isTransparent%22%3Atrue%2C%22displayMode%22%3A%22adaptive%22%7D" style="height:80px;width:100%;border:none;"></iframe>
+      <iframe src="https://s.tradingview.com/embed-widget/market-overview/?locale=en#%7B%22colorTheme%22%3A%22dark%22%2C%22dateRange%22%3A%221D%22%2C%22showChart%22%3Atrue%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%2C%22tabs%22%3A%5B%7B%22title%22%3A%22Indices%22%2C%22symbols%22%3A%5B%7B%22s%22%3A%22FOREXCOM%3ASPXUSD%22%2C%22d%22%3A%22S%26P%20500%22%7D%2C%7B%22s%22%3A%22FOREXCOM%3AGRXEUR%22%2C%22d%22%3A%22DAX%22%7D%2C%7B%22s%22%3A%22FOREXCOM%3AUKXGBP%22%2C%22d%22%3A%22FTSE%22%7D%2C%7B%22s%22%3A%22FOREXCOM%3AJPXJPY%22%2C%22d%22%3A%22Nikkei%22%7D%5D%7D%2C%7B%22title%22%3A%22Commodities%22%2C%22symbols%22%3A%5B%7B%22s%22%3A%22TVC%3AGOLD%22%2C%22d%22%3A%22Gold%22%7D%2C%7B%22s%22%3A%22TVC%3AUKOIL%22%2C%22d%22%3A%22Brent%22%7D%2C%7B%22s%22%3A%22TVC%3AUSOIL%22%2C%22d%22%3A%22WTI%22%7D%2C%7B%22s%22%3A%22TVC%3ANGAS%22%2C%22d%22%3A%22Nat%20Gas%22%7D%5D%7D%5D%7D" style="flex:1;width:100%;border:none;"></iframe>
+    </div>
+
     </div>
   </div>
 
@@ -620,6 +715,42 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
+// ── MARKETS ROTATION ─────────────────────────────────────────────────────────
+let marketPage = 0;
+let marketRotating = true;
+let marketTimer = null;
+const MARKET_PAGES = 3;
+
+function showMarketPage(n) {
+  marketPage = ((n % MARKET_PAGES) + MARKET_PAGES) % MARKET_PAGES;
+  document.querySelectorAll('.market-page').forEach((p,i) => p.classList.toggle('active', i === marketPage));
+  document.querySelectorAll('.rot-dot').forEach((d,i) => d.classList.toggle('active', i === marketPage));
+  document.getElementById('rot-page').textContent = marketPage + 1;
+}
+
+function nextMarketPage() { showMarketPage(marketPage + 1); }
+function prevMarketPage() { showMarketPage(marketPage - 1); }
+
+function toggleRotation() {
+  marketRotating = !marketRotating;
+  const btn = document.getElementById('rot-toggle');
+  btn.classList.toggle('active', marketRotating);
+  btn.textContent = marketRotating ? '⟳ AUTO' : '⏸ PAUSED';
+  if (marketRotating) startRotation();
+  else if (marketTimer) { clearInterval(marketTimer); marketTimer = null; }
+}
+
+function startRotation() {
+  if (marketTimer) clearInterval(marketTimer);
+  marketTimer = setInterval(() => {
+    if (marketRotating && document.getElementById('feeds-panel').classList.contains('open')) {
+      nextMarketPage();
+    }
+  }, 10000);
+}
+
+startRotation();
+
 // ── FEEDS PANEL ──────────────────────────────────────────────────────────────
 function toggleFeeds() {
   document.getElementById('feeds-panel').classList.toggle('open');
