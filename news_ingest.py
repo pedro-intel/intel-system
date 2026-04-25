@@ -517,7 +517,7 @@ def items_to_events(items: list) -> list:
 
 
 # ── MAIN ENTRY POINT ──────────────────────────────────────────────────────────
-def get_gdelt_events() -> list:
+def get_news_events() -> list:
     print("📡 Fetching Google News + X RSS...")
     items  = fetch_google_news()
     items += fetch_nitter_rss()

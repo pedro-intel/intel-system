@@ -11,8 +11,8 @@ from datetime import datetime
 
 from ml_model import classify_event, load_model
 from hormuz_tracker import run_hormuz_tracker, get_stats as get_hormuz_stats
-from db import save_event
-from news_ingest import get_gdelt_events
+from db import save_event, get_conn
+from news_ingest import get_news_events
 
 app = FastAPI()
 
@@ -205,7 +205,7 @@ async def intel_loop():
 
             loop = asyncio.get_event_loop()
             try:
-                events = await loop.run_in_executor(None, get_gdelt_events)
+                events = await loop.run_in_executor(None, get_news_events)
             except Exception as e:
                 print(f"⚠️ Fetch error: {e}")
                 events = []
@@ -255,7 +255,18 @@ async def watchdog():
     while True:
         if not _loop_running:
             print("🔄 Watchdog: restarting intel loop...")
-            asyncio.create_task(intel_loop())
+            # Clean up old GDELT events from DB
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM events WHERE source = 'GDELT' OR source = 'gdelt'")
+        deleted = cur.rowcount
+        conn.commit()
+        if deleted > 0:
+            print(f"🧹 Cleaned {deleted} old GDELT events from DB")
+    except Exception as e:
+        print(f"⚠️ DB cleanup error: {e}")
+    asyncio.create_task(intel_loop())
         await asyncio.sleep(60)  # Check every minute
 
 
@@ -279,6 +290,17 @@ async def startup_event():
         except Exception as e:
             print(f"⚠️ spaCy load failed: {e}")
     asyncio.create_task(load_model_bg())
+    # Clean up old GDELT events from DB
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM events WHERE source = 'GDELT' OR source = 'gdelt'")
+        deleted = cur.rowcount
+        conn.commit()
+        if deleted > 0:
+            print(f"🧹 Cleaned {deleted} old GDELT events from DB")
+    except Exception as e:
+        print(f"⚠️ DB cleanup error: {e}")
     asyncio.create_task(intel_loop())
     asyncio.create_task(watchdog())
     asyncio.create_task(run_hormuz_tracker())
