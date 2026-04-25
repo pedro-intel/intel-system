@@ -1055,15 +1055,14 @@ window.addEventListener('resize', () => {
   }
 });
 
-// Override openDetail for mobile — show as full screen
-const _openDetail = openDetail;
-function openDetail(event) {
-  _openDetail(event);
+// On mobile, close side panel when detail opens
+const _origOpenDetail = openDetail;
+openDetail = function(event) {
+  _origOpenDetail(event);
   if (isMobile()) {
-    // On mobile, close the side panel when detail opens
     document.querySelector('.side-panel').classList.remove('mobile-open');
   }
-}
+};
 
 
 // ── EXPORT ────────────────────────────────────────────────────────────────────
