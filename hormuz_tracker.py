@@ -53,10 +53,24 @@ def get_stats():
     for v in vessels_in_strait.values():
         by_type[v["type"]] += 1
     
+    # Build vessel list sorted by type
+    vessel_list = sorted([
+        {
+            "mmsi": mmsi,
+            "name": v.get("name", "Unknown"),
+            "type": v.get("type", "Unknown"),
+            "lat": v.get("lat", 0),
+            "lon": v.get("lon", 0),
+            "timestamp": v.get("timestamp", "")
+        }
+        for mmsi, v in vessels_in_strait.items()
+    ], key=lambda x: x["type"])
+    
     return {
         "in_strait": len(vessels_in_strait),
         "today_transits": today_count,
         "by_type": dict(by_type),
+        "vessels": vessel_list[:50],  # limit to 50
         "last_updated": now.isoformat()
     }
 
