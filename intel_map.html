@@ -711,6 +711,69 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 // ── HORMUZ TRACKER ───────────────────────────────────────────────────────────
+let hormuzPanelOpen = false;
+let lastHormuzData = null;
+
+function toggleHormuzPanel() {
+  hormuzPanelOpen = !hormuzPanelOpen;
+  const panel = document.getElementById('hormuz-panel');
+  panel.style.display = hormuzPanelOpen ? 'block' : 'none';
+  if (hormuzPanelOpen && lastHormuzData) renderHormuzPanel(lastHormuzData);
+}
+
+function getTypeEmoji(type) {
+  const map = {Tanker:'🛢️',Cargo:'📦',Passenger:'🚢',Fishing:'🎣','Military/Gov':'⚔️',Service:'🔧',Other:'🚤',Unknown:'❓'};
+  return map[type] || '🚤';
+}
+
+function renderHormuzPanel(data) {
+  const byType = data.by_type || {};
+  const total = data.in_strait || 0;
+  const today = data.today_transits || 0;
+  const summaryEl = document.getElementById('hormuz-summary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div style="text-align:center;padding:6px;background:rgba(0,200,255,0.05);border-radius:4px;border:1px solid var(--border);">
+          <div style="color:var(--accent);font-size:18px;font-weight:bold;">${total}</div>
+          <div style="color:var(--dim);font-size:9px;margin-top:2px;">IN STRAIT NOW</div>
+        </div>
+        <div style="text-align:center;padding:6px;background:rgba(0,200,255,0.05);border-radius:4px;border:1px solid var(--border);">
+          <div style="color:var(--accent);font-size:18px;font-weight:bold;">${today}</div>
+          <div style="color:var(--dim);font-size:9px;margin-top:2px;">TODAY'S TRANSITS</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${Object.entries(byType).map(([t,c])=>`<span style="padding:2px 8px;border:1px solid var(--border);border-radius:3px;font-size:9px;color:var(--dim);">${getTypeEmoji(t)} ${t}: <span style="color:var(--accent)">${c}</span></span>`).join('')}
+      </div>`;
+  }
+  const listEl = document.getElementById('hormuz-vessel-list');
+  if (listEl) {
+    const vessels = data.vessels || [];
+    if (!vessels.length) {
+      listEl.innerHTML = '<div style="padding:10px 14px;color:var(--dim);font-size:10px;">No vessel details yet — AIS data streaming...</div>';
+    } else {
+      listEl.innerHTML = vessels.map(v=>`
+        <div style="padding:8px 14px;border-bottom:1px solid var(--border);">
+          <div style="color:#fff;font-size:10px;">${getTypeEmoji(v.type)} ${v.name||'Unknown'}</div>
+          <div style="color:var(--dim);font-size:9px;margin-top:2px;">${v.type||'Unknown'} • ${(v.lat||0).toFixed(2)}°N ${(v.lon||0).toFixed(2)}°E</div>
+        </div>`).join('');
+    }
+  }
+}
+
+async function updateHormuzCount() {
+  try {
+    const res = await fetch('/api/hormuz');
+    const data = await res.json();
+    lastHormuzData = data;
+    const el = document.getElementById('hormuz-count');
+    if (el) el.textContent = data.in_strait || 0;
+    if (hormuzPanelOpen) renderHormuzPanel(data);
+  } catch(e) {}
+}
+updateHormuzCount();
+setInterval(updateHormuzCount, 30000);
 async function updateHormuzCount() {
   try {
     const res = await fetch('/api/hormuz');
