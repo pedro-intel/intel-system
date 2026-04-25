@@ -618,7 +618,7 @@ function makeMarker(event, addToLayer=true) {
   marker.on('click', () => openDetail(event));
   marker.on('popupopen', () => {
     const btn = document.getElementById(`popup-detail-btn-${event.lat.toFixed(4)}-${event.lng.toFixed(4)}`);
-    if (btn) btn.onclick = () => { map.closePopup(); openDetail(event); };
+    if (btn) btn.onclick = (e) => { e.stopPropagation(); openDetail(event); };
   });
   if(addToLayer){
     if(currentView==='markers')markerGroup.addLayer(marker);
