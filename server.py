@@ -259,6 +259,15 @@ async def watchdog():
         await asyncio.sleep(60)  # Check every minute
 
 
+@app.get("/api/hormuz")
+async def hormuz_stats():
+    """Live Hormuz strait vessel statistics."""
+    try:
+        from hormuz_tracker import get_stats
+        return get_stats()
+    except Exception as e:
+        return {"in_strait": 0, "today_transits": 0, "by_type": {}, "vessels": [], "error": str(e)}
+
 @app.on_event("startup")
 async def startup_event():
     print("🚀 Starting SENTINEL...")
