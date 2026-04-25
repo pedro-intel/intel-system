@@ -23,7 +23,7 @@
   header { display:flex; align-items:center; justify-content:space-between; padding:0 20px; height:50px; background:var(--panel); border-bottom:1px solid var(--border); flex-shrink:0; z-index:1000; }
   .logo { font-family:'Orbitron',monospace; font-weight:900; font-size:17px; letter-spacing:4px; color:var(--accent); }
   .logo span { color:#4a7a9b; font-weight:400; font-size:11px; letter-spacing:2px; margin-left:10px; }
-  .header-right { display:flex; align-items:center; gap:24px; font-family:'Share Tech Mono',monospace; font-size:11px; }
+  .header-right { display:flex; align-items:center; gap:24px; font-family:monospace; font-size:11px; }
   .live-badge { display:flex; align-items:center; gap:6px; color:var(--accent2); }
   .live-dot { width:7px; height:7px; border-radius:50%; background:var(--accent2); animation:pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
@@ -35,11 +35,11 @@
 
   /* SEARCH BAR */
   .search-wrap { position:relative; }
-  #country-search { background:rgba(13,34,56,0.8); border:1px solid var(--border); border-radius:3px; padding:5px 10px; font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text); width:160px; outline:none; transition:all .2s; }
+  #country-search { background:rgba(13,34,56,0.8); border:1px solid var(--border); border-radius:3px; padding:5px 10px; font-family:monospace; font-size:11px; color:var(--text); width:160px; outline:none; transition:all .2s; }
   #country-search:focus { border-color:var(--accent); width:200px; }
   #country-search::placeholder { color:var(--dim); }
   #search-results { position:absolute; top:100%; left:0; right:0; background:var(--panel); border:1px solid var(--border); border-top:none; border-radius:0 0 3px 3px; z-index:2000; max-height:200px; overflow-y:auto; display:none; }
-  .search-result { padding:8px 10px; font-family:'Share Tech Mono',monospace; font-size:11px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .search-result { padding:8px 10px; font-family:monospace; font-size:11px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
   .search-result:hover { background:rgba(0,200,255,.1); color:var(--accent); }
   .search-result .count { color:var(--crit); font-size:10px; }
 
@@ -53,23 +53,23 @@
   .panel-title { font-family:'Orbitron',monospace; font-size:9px; letter-spacing:3px; color:var(--accent); }
 
   .filters { padding:10px 16px; border-bottom:1px solid var(--border); display:flex; gap:6px; flex-shrink:0; }
-  .filter-btn { flex:1; padding:5px 0; border:1px solid var(--border); background:transparent; border-radius:3px; font-family:'Share Tech Mono',monospace; font-size:10px; cursor:pointer; transition:all .2s; letter-spacing:1px; }
+  .filter-btn { flex:1; padding:5px 0; border:1px solid var(--border); background:transparent; border-radius:3px; font-family:monospace; font-size:10px; cursor:pointer; transition:all .2s; letter-spacing:1px; }
   .filter-btn.all{color:var(--text)} .filter-btn.crit{color:var(--crit)} .filter-btn.warn{color:var(--warn)} .filter-btn.info{color:var(--info)}
   .filter-btn.active{background:rgba(0,200,255,.1);border-color:var(--accent);color:var(--accent)}
 
   .view-toggles { display:flex; gap:6px; padding:8px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
-  .view-btn { flex:1; padding:6px 0; border:1px solid var(--border); background:transparent; border-radius:3px; font-family:'Share Tech Mono',monospace; font-size:9px; cursor:pointer; transition:all .2s; letter-spacing:1px; color:var(--dim); }
+  .view-btn { flex:1; padding:6px 0; border:1px solid var(--border); background:transparent; border-radius:3px; font-family:monospace; font-size:9px; cursor:pointer; transition:all .2s; letter-spacing:1px; color:var(--dim); }
   .view-btn.active{background:rgba(0,200,255,.1);border-color:var(--accent);color:var(--accent)}
   .view-btn:hover{border-color:var(--accent);color:var(--accent)}
 
   .heatmap-legend { display:none; padding:8px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
   .heatmap-legend.visible{display:block}
   .legend-bar { height:8px; border-radius:4px; background:linear-gradient(to right,#00f,#0ff,#0f0,#ff0,#f00); margin-bottom:4px; }
-  .legend-labels { display:flex; justify-content:space-between; font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--dim); }
+  .legend-labels { display:flex; justify-content:space-between; font-family:monospace; font-size:9px; color:var(--dim); }
 
   /* PANEL TABS */
   .panel-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
-  .panel-tab { flex:1; padding:8px 0; text-align:center; font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; color:var(--dim); cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; }
+  .panel-tab { flex:1; padding:8px 0; text-align:center; font-family:monospace; font-size:9px; letter-spacing:2px; color:var(--dim); cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; }
   .panel-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
   .panel-tab:hover { color:var(--text); }
 
@@ -83,21 +83,21 @@
   .event-card:hover{background:rgba(0,200,255,.05)}
   @keyframes slideIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
   .event-card.critical{border-left-color:var(--crit)} .event-card.warning{border-left-color:var(--warn)} .event-card.info{border-left-color:var(--info)}
-  .event-type{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+  .event-type{font-family:monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
   .event-card.critical .event-type{color:var(--crit)} .event-card.warning .event-type{color:var(--warn)} .event-card.info .event-type{color:var(--info)}
   .event-msg{font-size:12px;color:var(--text);line-height:1.4;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .event-time{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim)}
+  .event-time{font-family:monospace;font-size:10px;color:var(--dim)}
 
   /* COUNTRY STATS */
   #country-stats { padding:8px; }
   .country-row { display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:4px; border-radius:3px; cursor:pointer; transition:background .15s; border:1px solid transparent; }
   .country-row:hover { background:rgba(0,200,255,.05); border-color:var(--border); }
   .country-rank { font-family:'Orbitron',monospace; font-size:10px; color:var(--dim); width:20px; flex-shrink:0; }
-  .country-name { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text); flex:1; }
+  .country-name { font-family:monospace; font-size:11px; color:var(--text); flex:1; }
   .country-bar-wrap { width:60px; height:4px; background:var(--border); border-radius:2px; flex-shrink:0; }
   .country-bar { height:100%; border-radius:2px; background:var(--accent); transition:width .5s; }
   .country-bar.crit{background:var(--crit)} .country-bar.warn{background:var(--warn)}
-  .country-count { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); width:28px; text-align:right; flex-shrink:0; }
+  .country-count { font-family:monospace; font-size:10px; color:var(--dim); width:28px; text-align:right; flex-shrink:0; }
 
   /* EVENT DETAIL PANEL */
   .detail-panel { position:absolute; top:0; right:320px; width:340px; height:100%; background:var(--panel); border-left:1px solid var(--border); z-index:800; transform:translateX(100%); transition:transform .3s ease; display:flex; flex-direction:column; }
@@ -110,17 +110,17 @@
   .detail-body { padding:16px; flex:1; overflow-y:auto; }
   .detail-message { font-size:14px; color:var(--text); line-height:1.6; margin-bottom:16px; font-weight:500; }
   .detail-row { display:flex; gap:12px; margin-bottom:12px; }
-  .detail-label { font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; width:80px; flex-shrink:0; padding-top:2px; }
-  .detail-value { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text); flex:1; }
+  .detail-label { font-family:monospace; font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; width:80px; flex-shrink:0; padding-top:2px; }
+  .detail-value { font-family:monospace; font-size:11px; color:var(--text); flex:1; }
   .detail-divider { border:none; border-top:1px solid var(--border); margin:12px 0; }
   .detail-related-title { font-family:'Orbitron',monospace; font-size:9px; letter-spacing:2px; color:var(--accent); margin-bottom:8px; }
   .related-event { padding:8px; border:1px solid var(--border); border-radius:3px; margin-bottom:6px; cursor:pointer; font-size:11px; color:var(--text); line-height:1.4; transition:background .15s; }
   .related-event:hover{background:rgba(0,200,255,.05)}
-  .related-event .rel-type { font-family:'Share Tech Mono',monospace; font-size:9px; margin-bottom:3px; }
+  .related-event .rel-type { font-family:monospace; font-size:9px; margin-bottom:3px; }
   .related-event.critical .rel-type{color:var(--crit)} .related-event.warning .rel-type{color:var(--warn)} .related-event.info .rel-type{color:var(--info)}
 
   /* STATUS BAR */
-  .status-bar-bottom { padding:8px 16px; border-top:1px solid var(--border); font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); flex-shrink:0; display:flex; justify-content:space-between; }
+  .status-bar-bottom { padding:8px 16px; border-top:1px solid var(--border); font-family:monospace; font-size:10px; color:var(--dim); flex-shrink:0; display:flex; justify-content:space-between; }
 
   /* TIMELINE */
   .timeline-bar { position:absolute; bottom:0; left:0; right:320px; height:70px; background:rgba(7,13,24,.92); border-top:1px solid var(--border); padding:10px 20px; display:flex; flex-direction:column; gap:8px; z-index:900; backdrop-filter:blur(8px); transition:opacity .3s; }
@@ -128,22 +128,22 @@
   .timeline-controls { display:flex; align-items:center; gap:12px; }
   .tl-btn { width:28px; height:28px; border:1px solid var(--border); background:transparent; border-radius:3px; color:var(--accent); font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; flex-shrink:0; }
   .tl-btn:hover{background:rgba(0,200,255,.1);border-color:var(--accent)} .tl-btn.active{background:rgba(0,200,255,.2);border-color:var(--accent)}
-  .tl-time-label { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--accent); min-width:160px; letter-spacing:1px; }
-  .tl-speed { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); cursor:pointer; border:1px solid var(--border); padding:3px 8px; border-radius:3px; background:transparent; transition:all .2s; }
+  .tl-time-label { font-family:monospace; font-size:11px; color:var(--accent); min-width:160px; letter-spacing:1px; }
+  .tl-speed { font-family:monospace; font-size:10px; color:var(--dim); cursor:pointer; border:1px solid var(--border); padding:3px 8px; border-radius:3px; background:transparent; transition:all .2s; }
   .tl-speed:hover{color:var(--accent);border-color:var(--accent)}
-  .tl-event-count { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); margin-left:auto; }
-  .tl-close { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); cursor:pointer; border:none; background:transparent; padding:0 4px; }
+  .tl-event-count { font-family:monospace; font-size:10px; color:var(--dim); margin-left:auto; }
+  .tl-close { font-family:monospace; font-size:10px; color:var(--dim); cursor:pointer; border:none; background:transparent; padding:0 4px; }
   .tl-close:hover{color:var(--crit)}
   .tl-slider-wrap { display:flex; align-items:center; gap:8px; }
   .tl-range { -webkit-appearance:none; appearance:none; flex:1; height:3px; background:var(--border); border-radius:2px; outline:none; cursor:pointer; }
   .tl-range::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px rgba(0,200,255,.6); cursor:pointer; }
-  .tl-label-start,.tl-label-end { font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--dim); white-space:nowrap; }
-  .timeline-toggle { position:absolute; bottom:75px; left:20px; z-index:901; background:rgba(7,13,24,.9); border:1px solid var(--border); border-radius:3px; padding:6px 12px; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--accent); cursor:pointer; letter-spacing:1px; transition:all .2s; backdrop-filter:blur(8px); }
+  .tl-label-start,.tl-label-end { font-family:monospace; font-size:9px; color:var(--dim); white-space:nowrap; }
+  .timeline-toggle { position:absolute; bottom:75px; left:20px; z-index:901; background:rgba(7,13,24,.9); border:1px solid var(--border); border-radius:3px; padding:6px 12px; font-family:monospace; font-size:10px; color:var(--accent); cursor:pointer; letter-spacing:1px; transition:all .2s; backdrop-filter:blur(8px); }
   .timeline-toggle:hover{background:rgba(0,200,255,.1);border-color:var(--accent)}
   .timeline-toggle.down{bottom:5px}
 
   /* ALERT TOAST */
-  .alert-toast { position:fixed; top:60px; left:50%; transform:translateX(-50%) translateY(-80px); background:rgba(255,62,62,.15); border:1px solid var(--crit); border-radius:4px; padding:10px 20px; font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--crit); z-index:9999; transition:transform .4s ease; pointer-events:none; letter-spacing:1px; white-space:nowrap; }
+  .alert-toast { position:fixed; top:60px; left:50%; transform:translateX(-50%) translateY(-80px); background:rgba(255,62,62,.15); border:1px solid var(--crit); border-radius:4px; padding:10px 20px; font-family:monospace; font-size:12px; color:var(--crit); z-index:9999; transition:transform .4s ease; pointer-events:none; letter-spacing:1px; white-space:nowrap; }
   .alert-toast.show{transform:translateX(-50%) translateY(0)}
 
   /* LEAFLET OVERRIDES */
@@ -152,8 +152,8 @@
   .leaflet-popup-content{margin:12px 16px;font-size:13px;line-height:1.6}
   .popup-type{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;margin-bottom:6px}
   .popup-type.critical{color:#ff3e3e} .popup-type.warning{color:#ffb800} .popup-type.info{color:#4da6ff}
-  .popup-time{font-family:'Share Tech Mono',monospace;font-size:10px;color:#3a5a78;margin-top:6px}
-  .popup-detail-btn{display:inline-block;margin-top:8px;padding:4px 10px;border:1px solid #0d2238;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#00c8ff;cursor:pointer;transition:all .2s}
+  .popup-time{font-family:monospace;font-size:10px;color:#3a5a78;margin-top:6px}
+  .popup-detail-btn{display:inline-block;margin-top:8px;padding:4px 10px;border:1px solid #0d2238;border-radius:3px;font-family:monospace;font-size:10px;color:#00c8ff;cursor:pointer;transition:all .2s}
   .popup-detail-btn:hover{background:rgba(0,200,255,.1)}
 
   /* CLUSTERS */
@@ -510,12 +510,12 @@
     <div class="stat"><div class="val" id="stat-total">0</div><div class="lbl">EVENTS</div></div>
     <div class="stat"><div class="val" id="stat-crit" style="color:var(--crit)">0</div><div class="lbl">CRITICAL</div></div>
     <div class="stat"><div class="val" id="stat-warn" style="color:var(--warn)">0</div><div class="lbl">WARNING</div></div>
-    <div id="hormuz-counter" onclick="toggleHormuzPanel()" title="Click for vessel details" style="display:flex;align-items:center;gap:4px;font-family:'Share Tech Mono',monospace;font-size:10px;border:1px solid #1a3a4a;border-radius:3px;padding:3px 8px;cursor:pointer;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='#1a3a4a'">
+    <div id="hormuz-counter" onclick="toggleHormuzPanel()" title="Click for vessel details" style="display:flex;align-items:center;gap:4px;font-family:monospace;font-size:10px;border:1px solid #1a3a4a;border-radius:3px;padding:3px 8px;cursor:pointer;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='#1a3a4a'">
       🚢 <span id="hormuz-count" style="color:var(--accent);font-weight:bold;">--</span>
     </div>
 
     <!-- Hormuz Detail Panel -->
-    <div id="hormuz-panel" style="display:none;position:fixed;top:50px;left:50%;transform:translateX(-50%);width:360px;max-height:500px;background:var(--panel);border:1px solid var(--accent);border-radius:6px;z-index:2000;overflow:hidden;font-family:'Share Tech Mono',monospace;box-shadow:0 4px 20px rgba(0,200,255,0.15);">
+    <div id="hormuz-panel" style="display:none;position:fixed;top:50px;left:50%;transform:translateX(-50%);width:360px;max-height:500px;background:var(--panel);border:1px solid var(--accent);border-radius:6px;z-index:2000;overflow:hidden;font-family:monospace;box-shadow:0 4px 20px rgba(0,200,255,0.15);">
       <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <span style="color:var(--accent);font-size:11px;letter-spacing:2px;">🚢 HORMUZ STRAIT</span>
         <button onclick="toggleHormuzPanel()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:14px;">✕</button>
@@ -527,9 +527,9 @@
         <div style="padding:10px 14px;color:var(--dim);font-size:10px;">Waiting for AIS data...</div>
       </div>
     </div>
-    <button onclick="showIntelBrief()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Daily Intel Brief">📋 BRIEF</button>
-    <button onclick="toggleFeeds()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Intel Feeds">📡 FEEDS</button>
-    <button id="sound-toggle" onclick="toggleSound()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle sound alerts">🔇 SOUND</button>
+    <button onclick="showIntelBrief()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Daily Intel Brief">📋 BRIEF</button>
+    <button onclick="toggleFeeds()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Intel Feeds">📡 FEEDS</button>
+    <button id="sound-toggle" onclick="toggleSound()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle sound alerts">🔇 SOUND</button>
     <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">CONNECTING</span></div>
     <div id="clock">--:--:--</div>
   </div>
@@ -543,8 +543,8 @@
   <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:rgba(0,200,255,0.05);">
     <span style="color:var(--accent);font-size:12px;letter-spacing:2px;">📋 SENTINEL DAILY INTEL BRIEF</span>
     <div style="display:flex;gap:8px;align-items:center;">
-      <button onclick="copyBrief()" style="background:transparent;border:1px solid var(--border);color:var(--dim);padding:3px 10px;cursor:pointer;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:10px;">📋 COPY</button>
-      <button onclick="document.getElementById('brief-modal').style.display='none'" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:16px;">✕</button>
+      <button onclick="copyBrief()" style="background:transparent;border:1px solid var(--border);color:var(--dim);padding:3px 10px;cursor:pointer;border-radius:3px;font-family:monospace;font-size:10px;">📋 COPY</button>
+      <button onclick="closeBrief()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:16px;">✕</button>
     </div>
   </div>
   <div id="brief-content" style="padding:16px;overflow-y:auto;max-height:calc(80vh - 60px);font-size:11px;line-height:1.6;color:#ccc;white-space:pre-wrap;"></div>
@@ -660,7 +660,7 @@
   <div class="side-panel">
     <div class="panel-header">
       <span class="panel-title">SENTINEL FEED</span>
-      <span id="event-count" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim)">0 events</span>
+      <span id="event-count" style="font-family:monospace;font-size:11px;color:var(--dim)">0 events</span>
     </div>
     <div class="filters">
       <button class="filter-btn all active" onclick="setFilter('all')">ALL</button>
@@ -671,7 +671,7 @@
     <div style="padding:6px 8px;border-bottom:1px solid var(--border);">
       <input id="feed-search" type="text" placeholder="🔍 Search events..." 
         oninput="filterFeed()" 
-        style="width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:3px;padding:5px 8px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:10px;box-sizing:border-box;outline:none;">
+        style="width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:3px;padding:5px 8px;color:#fff;font-family:monospace;font-size:10px;box-sizing:border-box;outline:none;">
     </div>
     <div class="view-toggles">
       <button class="view-btn active" id="btn-markers" onclick="setView('markers')">⬤ MARKERS</button>
@@ -810,6 +810,7 @@ updateHormuzCount();
 setInterval(updateHormuzCount, 30000); // update every 30s
 
 // ── INTEL BRIEF ──────────────────────────────────────────────────────────────
+function closeBrief() { document.getElementById("brief-modal").style.display="none"; }
 function showIntelBrief() {
   const modal = document.getElementById('brief-modal');
   modal.style.display = 'block';
