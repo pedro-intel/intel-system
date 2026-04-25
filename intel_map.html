@@ -615,9 +615,8 @@ function makeMarker(event, addToLayer=true) {
     <div class="popup-type ${event.type}">${(event.type||'info').toUpperCase()}</div>
     <div>${event.message}</div>
     <div class="popup-time">${time}</div>
-    <div class="popup-detail-btn" onclick="openDetail(window['${evtKey}'])">▸ VIEW DETAILS</div>
+    <div class="popup-detail-btn" onclick="openDetail(window['${evtKey}']); this.closest('.leaflet-popup').style.display='none';">▸ VIEW DETAILS</div>
   `);
-  marker.on('click', () => openDetail(event));
   if(addToLayer){
     if(currentView==='markers')markerGroup.addLayer(marker);
     else if(currentView==='cluster')clusterGroup.addLayer(marker);
