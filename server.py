@@ -10,6 +10,7 @@ import io
 from datetime import datetime
 
 from ml_model import classify_event, load_model
+from hormuz_tracker import run_hormuz_tracker, get_stats as get_hormuz_stats
 from db import save_event
 from news_ingest import get_gdelt_events
 
@@ -271,3 +272,4 @@ async def startup_event():
     asyncio.create_task(load_model_bg())
     asyncio.create_task(intel_loop())
     asyncio.create_task(watchdog())
+    asyncio.create_task(run_hormuz_tracker())

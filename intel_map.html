@@ -510,6 +510,12 @@
     <div class="stat"><div class="val" id="stat-total">0</div><div class="lbl">EVENTS</div></div>
     <div class="stat"><div class="val" id="stat-crit" style="color:var(--crit)">0</div><div class="lbl">CRITICAL</div></div>
     <div class="stat"><div class="val" id="stat-warn" style="color:var(--warn)">0</div><div class="lbl">WARNING</div></div>
+    <div id="hormuz-counter" title="Vessels in Strait of Hormuz" style="display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:10px;border:1px solid #1a3a4a;border-radius:3px;padding:4px 10px;cursor:default;">
+      <span style="color:#00aaff;">🚢</span>
+      <span style="color:var(--dim);">HORMUZ</span>
+      <span id="hormuz-count" style="color:var(--accent);font-weight:bold;">--</span>
+      <span style="color:var(--dim);font-size:9px;">vessels</span>
+    </div>
     <button onclick="toggleFeeds()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Intel Feeds">📡 FEEDS</button>
     <button id="sound-toggle" onclick="toggleSound()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle sound alerts">🔇 SOUND</button>
     <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">CONNECTING</span></div>
@@ -693,6 +699,24 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
+// ── HORMUZ TRACKER ───────────────────────────────────────────────────────────
+async function updateHormuzCount() {
+  try {
+    const res = await fetch('/api/hormuz');
+    const data = await res.json();
+    const el = document.getElementById('hormuz-count');
+    if (el) {
+      el.textContent = data.in_strait || 0;
+      const counter = document.getElementById('hormuz-counter');
+      if (counter) {
+        counter.title = `Vessels in Strait of Hormuz\nToday's transits: ${data.today_transits || 0}\nTankers: ${(data.by_type || {}).Tanker || 0}\nCargo: ${(data.by_type || {}).Cargo || 0}`;
+      }
+    }
+  } catch(e) {}
+}
+updateHormuzCount();
+setInterval(updateHormuzCount, 30000); // update every 30s
+
 // ── MARKETS ROTATION ─────────────────────────────────────────────────────────
 let marketPage = 0;
 let marketRotating = true;
