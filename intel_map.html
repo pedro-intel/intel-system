@@ -510,11 +510,8 @@
     <div class="stat"><div class="val" id="stat-total">0</div><div class="lbl">EVENTS</div></div>
     <div class="stat"><div class="val" id="stat-crit" style="color:var(--crit)">0</div><div class="lbl">CRITICAL</div></div>
     <div class="stat"><div class="val" id="stat-warn" style="color:var(--warn)">0</div><div class="lbl">WARNING</div></div>
-    <div id="hormuz-counter" title="Vessels in Strait of Hormuz" style="display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:10px;border:1px solid #1a3a4a;border-radius:3px;padding:4px 10px;cursor:default;">
-      <span style="color:#00aaff;">🚢</span>
-      <span style="color:var(--dim);">HORMUZ</span>
-      <span id="hormuz-count" style="color:var(--accent);font-weight:bold;">--</span>
-      <span style="color:var(--dim);font-size:9px;">vessels</span>
+    <div id="hormuz-counter" title="Live vessels in Strait of Hormuz" style="display:flex;align-items:center;gap:4px;font-family:'Share Tech Mono',monospace;font-size:10px;border:1px solid #1a3a4a;border-radius:3px;padding:3px 8px;cursor:default;white-space:nowrap;">
+      🚢 <span id="hormuz-count" style="color:var(--accent);font-weight:bold;">--</span>
     </div>
     <button onclick="toggleFeeds()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Intel Feeds">📡 FEEDS</button>
     <button id="sound-toggle" onclick="toggleSound()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle sound alerts">🔇 SOUND</button>
