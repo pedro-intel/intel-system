@@ -267,7 +267,6 @@ async def watchdog():
     except Exception as e:
         print(f"⚠️ DB cleanup error: {e}")
     asyncio.create_task(intel_loop())
-        await asyncio.sleep(60)  # Check every minute
 
 
 @app.get("/api/hormuz")
