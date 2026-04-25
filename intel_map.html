@@ -515,7 +515,7 @@
     </div>
 
     <!-- Hormuz Detail Panel -->
-    <div id="hormuz-panel" style="display:none;position:fixed;top:50px;right:8px;width:320px;max-height:500px;background:var(--panel);border:1px solid var(--accent);border-radius:6px;z-index:2000;overflow:hidden;font-family:'Share Tech Mono',monospace;box-shadow:0 4px 20px rgba(0,200,255,0.15);">
+    <div id="hormuz-panel" style="display:none;position:fixed;top:50px;left:50%;transform:translateX(-50%);width:360px;max-height:500px;background:var(--panel);border:1px solid var(--accent);border-radius:6px;z-index:2000;overflow:hidden;font-family:'Share Tech Mono',monospace;box-shadow:0 4px 20px rgba(0,200,255,0.15);">
       <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <span style="color:var(--accent);font-size:11px;letter-spacing:2px;">🚢 HORMUZ STRAIT</span>
         <button onclick="toggleHormuzPanel()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:14px;">✕</button>
@@ -654,6 +654,11 @@
       <button class="filter-btn crit" onclick="setFilter('critical')">CRIT</button>
       <button class="filter-btn warn" onclick="setFilter('warning')">WARN</button>
       <button class="filter-btn info" onclick="setFilter('info')">INFO</button>
+    </div>
+    <div style="padding:6px 8px;border-bottom:1px solid var(--border);">
+      <input id="feed-search" type="text" placeholder="🔍 Search events..." 
+        oninput="filterFeed()" 
+        style="width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:3px;padding:5px 8px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:10px;box-sizing:border-box;outline:none;">
     </div>
     <div class="view-toggles">
       <button class="view-btn active" id="btn-markers" onclick="setView('markers')">⬤ MARKERS</button>
@@ -1030,7 +1035,16 @@ function setFilter(type){
   currentFilter=type;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector(`.filter-btn.${type==='all'?'all':type==='critical'?'crit':type==='warning'?'warn':'info'}`).classList.add('active');
-  document.querySelectorAll('.event-card').forEach(c=>{c.style.display=(type==='all'||c.dataset.type===type)?'':'none';});
+  filterFeed();
+}
+
+function filterFeed(){
+  const search = (document.getElementById('feed-search')?.value || '').toLowerCase();
+  document.querySelectorAll('.event-card').forEach(c=>{
+    const typeMatch = currentFilter==='all' || c.dataset.type===currentFilter;
+    const textMatch = !search || c.textContent.toLowerCase().includes(search);
+    c.style.display = (typeMatch && textMatch) ? '' : 'none';
+  });
   document.getElementById('feed-count').textContent=document.querySelectorAll('.event-card:not([style*="none"])').length+' in feed';
 }
 
