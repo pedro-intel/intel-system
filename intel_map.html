@@ -431,7 +431,7 @@
     transition: background .3s;
   }
   .rot-dot.active { background: var(--accent); }
-  .market-page { display: none; height: 100%; }
+  .market-page { display: none; height: 100%; overflow: hidden; }
   .market-page.active { display: grid; }
   .feeds-panel {
     position: absolute;
@@ -544,7 +544,7 @@
       <span style="margin-left:auto;font-size:9px;opacity:.5;">AUTO-ROTATES EVERY 8s</span>
     </div>
     <div style="flex:1;overflow:hidden;position:relative;">
-    <div class="market-page active feeds-grid" id="mpage-0" style="grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr;">
+    <div class="market-page active feeds-grid" id="mpage-0" style="grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr;height:100%;">
       <!-- SPX500 -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%20%22FOREXCOM%3ASPXUSD%22%2C%20%22dateRange%22%3A%20%221D%22%2C%20%22colorTheme%22%3A%20%22dark%22%2C%20%22trendLineColor%22%3A%20%22rgba%280%2C200%2C255%2C1%29%22%2C%20%22underLineColor%22%3A%20%22rgba%280%2C200%2C255%2C0.1%29%22%2C%20%22isTransparent%22%3A%20true%2C%20%22autosize%22%3A%20true%7D"></iframe>
       <!-- DAX -->
@@ -552,7 +552,7 @@
       <!-- FTSE 100 -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%20%22FOREXCOM%3AUKXGBP%22%2C%20%22dateRange%22%3A%20%221D%22%2C%20%22colorTheme%22%3A%20%22dark%22%2C%20%22trendLineColor%22%3A%20%22rgba%280%2C200%2C255%2C1%29%22%2C%20%22underLineColor%22%3A%20%22rgba%280%2C200%2C255%2C0.1%29%22%2C%20%22isTransparent%22%3A%20true%2C%20%22autosize%22%3A%20true%7D"></iframe>
     </div>
-    <div class="market-page  feeds-grid" id="mpage-1" style="grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr;">
+    <div class="market-page  feeds-grid" id="mpage-1" style="grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr;height:100%;">
       <!-- Nikkei 225 -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%20%22FOREXCOM%3AJPXJPY%22%2C%20%22dateRange%22%3A%20%221D%22%2C%20%22colorTheme%22%3A%20%22dark%22%2C%20%22trendLineColor%22%3A%20%22rgba%280%2C255%2C150%2C1%29%22%2C%20%22underLineColor%22%3A%20%22rgba%280%2C255%2C150%2C0.1%29%22%2C%20%22isTransparent%22%3A%20true%2C%20%22autosize%22%3A%20true%7D"></iframe>
       <!-- Shanghai -->
@@ -560,7 +560,7 @@
       <!-- Gold -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%20%22TVC%3AGOLD%22%2C%20%22dateRange%22%3A%20%221D%22%2C%20%22colorTheme%22%3A%20%22dark%22%2C%20%22trendLineColor%22%3A%20%22rgba%28255%2C215%2C0%2C1%29%22%2C%20%22underLineColor%22%3A%20%22rgba%28255%2C215%2C0%2C0.1%29%22%2C%20%22isTransparent%22%3A%20true%2C%20%22autosize%22%3A%20true%7D"></iframe>
     </div>
-    <div class="market-page  feeds-grid" id="mpage-2" style="grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr;">
+    <div class="market-page  feeds-grid" id="mpage-2" style="grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr;height:100%;">
       <!-- Brent Oil -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%20%22TVC%3AUKOIL%22%2C%20%22dateRange%22%3A%20%221D%22%2C%20%22colorTheme%22%3A%20%22dark%22%2C%20%22trendLineColor%22%3A%20%22rgba%28255%2C165%2C0%2C1%29%22%2C%20%22underLineColor%22%3A%20%22rgba%28255%2C165%2C0%2C0.1%29%22%2C%20%22isTransparent%22%3A%20true%2C%20%22autosize%22%3A%20true%7D"></iframe>
       <!-- WTI Crude -->
@@ -717,7 +717,10 @@ function toggleRotation() {
 function startRotation() {
   if (marketTimer) clearInterval(marketTimer);
   marketTimer = setInterval(() => {
-    if (marketRotating && document.getElementById('feeds-panel').classList.contains('open')) {
+    const panel = document.getElementById('feeds-panel');
+    const marketsTab = document.getElementById('feeds-markets');
+    if (marketRotating && panel && panel.classList.contains('open') && 
+        marketsTab && marketsTab.classList.contains('active')) {
       nextMarketPage();
     }
   }, 8000);
@@ -727,7 +730,11 @@ startRotation();
 
 // ── FEEDS PANEL ──────────────────────────────────────────────────────────────
 function toggleFeeds() {
-  document.getElementById('feeds-panel').classList.toggle('open');
+  const panel = document.getElementById('feeds-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    showMarketPage(0); // reset to page 1 when opening
+  }
 }
 
 function feedsTab(tab) {
