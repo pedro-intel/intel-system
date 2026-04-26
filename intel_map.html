@@ -621,7 +621,7 @@
   <div id="map"></div>
 
   <!-- Event detail panel -->
-  <div class="detail-panel" id="detail-panel">
+  <div class="detail-panel" id="detail-panel" style="transform:translateX(100%)">
     <div class="detail-header">
       <span class="detail-type" id="detail-type">CRITICAL</span>
       <button class="detail-close" onclick="closeDetail()">✕</button>
@@ -630,7 +630,7 @@
       <div class="detail-message" id="detail-message"></div>
       <div class="detail-row"><span class="detail-label">LOCATION</span><span class="detail-value" id="detail-location"></span></div>
       <div class="detail-row"><span class="detail-label">TIME</span><span class="detail-value" id="detail-time"></span></div>
-      <div class="detail-row"><span class="detail-label">SOURCE</span><span class="detail-value" id="detail-source">GDELT</span></div>
+      <div class="detail-row"><span class="detail-label">SOURCE</span><span class="detail-value" id="detail-source"></span></div>
       <div class="detail-row"><span class="detail-label">COORDS</span><span class="detail-value" id="detail-coords"></span></div>
       <hr class="detail-divider">
       <div class="detail-related-title">RELATED EVENTS IN REGION</div>
@@ -962,7 +962,7 @@ function openDetail(event) {
   document.getElementById('detail-type').className = `detail-type ${type}`;
   document.getElementById('detail-message').textContent = event.message;
   document.getElementById('detail-location').textContent = event.location || 'Unknown';
-  document.getElementById('detail-source').textContent = event.source || 'GDELT';
+  document.getElementById('detail-source').textContent = event.source || 'Unknown';
   document.getElementById('detail-coords').textContent = `${event.lat.toFixed(4)}°, ${event.lng.toFixed(4)}°`;
 
   const t = event.time ? new Date(event.time) : null;
