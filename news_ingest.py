@@ -200,30 +200,74 @@ CONFLICT_KEYWORDS = [
 ]
 
 CRITICAL_WORDS = [
-    "killed", "dead", "casualties", "airstrike", "missile strike",
-    "missile attack", "explosion", "massacre", "bombing", "drone strike",
-    "shelling", "hostage", "kidnap", "wounded", "soldiers killed",
-    "troops killed", "civilians killed", "strikes kill", "attack kills",
-    "shoot down", "shot down", "sunk", "torpedoed", "intercepted missile",
+    # Confirmed deaths
+    "killed", "dead", "casualties", "civilians killed", "soldiers killed",
+    "troops killed", "people killed", "killed in strike", "killed in attack",
+    # Confirmed explosions/strikes
+    "explosion", "explosions", "airstrike", "air strike",
+    "missile strike", "missile attack", "drone strike", "bombing",
+    "shelling", "rocket attack", "mortar attack",
+    # Confirmed hits
+    "strikes kill", "attack kills", "attack killed", "strike kills",
+    "hit by missile", "struck by drone", "bombed",
+    # Aircraft/ships
+    "shoot down", "shot down", "sunk", "torpedoed",
+    # Hostages/assassination
+    "hostage", "hostages taken", "kidnapped", "assassinated",
+    "assassination attempt", "shot dead", "executed",
+    # Invasion/ground action
+    "invaded", "invasion launched", "ground offensive", "troops cross",
+    "forces enter", "stormed",
 ]
 
-# Phrases that should NOT trigger CRITICAL even if CRITICAL_WORDS match
+CRITICAL_STRONG = [
+    "kill", "dead", "casualt", "wound", "injur", "explos",
+    "struck", "bomb", "shoot", "shot", "hostage", "assassin",
+    "invad", "storm",
+]
+
 DOWNGRADE_PATTERNS = [
-    r"\beurope pushes back\b",
-    r"\bpushes back on\b",
-    r"\bconcern(s|ed)?\b.*war",
-    r"\bwar.*concern",
+    # Reports about past events
+    r"updated figures",
+    r"yesterday'?s",
+    r"last night'?s",
+    r"it turns out",
+    r"reported were actually",
+    r"correction:",
+    r"^updated[:\s]",
+    r"overnight.*update",
+    # Analysis/opinion
     r"\banalysis\b", r"\bopinion\b", r"\bcommentary\b",
+    r"\bexplainer\b",
     r"\bwhat.*means\b", r"\bwhy.*matter",
-    r"trump says he would never",
+    r"implications of",
+    r"lessons from",
+    # Diplomatic/political statements
     r"rules out",
-    r"unlikely",
-    r"\bif\b.*\bnuclear\b",
-    r"risk of war",
-    r"danger of war",
-    r"braces for",
+    r"says he would never",
+    r"considering",
+    r"could lead",
+    r"may lead",
+    r"might escalate",
+    r"risk of",
+    r"danger of",
     r"fears of",
     r"warns of",
+    r"braces for",
+    r"concern(s|ed)?",
+    r"unlikely",
+    # Economic/sanctions
+    r"\bsanction",
+    r"\btariff",
+    r"\btrade",
+    r"\beconomic",
+    # Diplomacy
+    r"\bceasefire\b",
+    r"\bnegotiat",
+    r"\btalk(s)?\b.*peace",
+    r"\bpeace talk",
+    r"\bdeal\b.*iran",
+    r"\bdiplom",
 ]
 
 DOWNGRADE_RE = [re.compile(p, re.IGNORECASE) for p in DOWNGRADE_PATTERNS]
@@ -336,11 +380,15 @@ def is_relevant(text: str) -> bool:
 
 def classify_text(text: str) -> str:
     t = text.lower()
-    # Check if it matches critical words
-    if any(w in t for w in CRITICAL_WORDS):
-        # But downgrade if it's analysis/opinion
-        if any(p.search(text) for p in DOWNGRADE_RE):
+    # First check downgrade patterns - if any match, max is WARNING
+    if any(p.search(text) for p in DOWNGRADE_RE):
+        if any(w in t for w in WARNING_WORDS):
             return "warning"
+        return "info"
+    # Check critical - require phrase match AND strong indicator
+    has_critical_phrase = any(w in t for w in CRITICAL_WORDS)
+    has_strong = any(s in t for s in CRITICAL_STRONG)
+    if has_critical_phrase and has_strong:
         return "critical"
     if any(w in t for w in WARNING_WORDS):
         return "warning"
