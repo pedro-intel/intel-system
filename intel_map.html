@@ -1161,7 +1161,15 @@ function filterFeed(){
 let alertQueue = [];
 let alertShowing = false;
 
+const shownAlerts = new Set();
+
 function showAlert(message) {
+  // Don't repeat the same alert
+  const key = message.slice(0, 50);
+  if (shownAlerts.has(key)) return;
+  shownAlerts.add(key);
+  // Keep set small
+  if (shownAlerts.size > 100) shownAlerts.clear();
   alertQueue.push(message);
   if (!alertShowing) processAlertQueue();
 }
@@ -1212,8 +1220,9 @@ function processEvent(data){
   allMarkers.push({marker,event:data});allEvents.push(data);
   if(currentView==='heatmap'){heatPoints.push([data.lat,data.lng,HEAT_I[data.type]||.3]);heatLayer.setLatLngs(heatPoints);}
   addEventCard(data,marker);updateStats(data);addToTicker(data);
-  // Stream mode: interrupt for critical events
-  if (streamMode && data.type === 'critical' && data.lat && data.lng) {
+  // Stream mode: only interrupt for fresh critical events (not historical replay)
+  const ageMs = Date.now() - new Date(data.time).getTime();
+  if (streamMode && data.type === 'critical' && data.lat && data.lng && ageMs < 300000) {
     streamCriticalInterrupt(data);
   }
 }
@@ -1488,7 +1497,8 @@ function streamTourNextRegion() {
   map.flyTo([region.lat, region.lng], region.zoom, { duration: 2.5, easeLinearity: 0.3 });
   showRegionLabel(region.name.toUpperCase());
 
-  setTimeout(() => streamTourShowNextEvent(), 3000);
+  // Store in streamInterval so stopStreamTour can cancel it
+  streamInterval = setTimeout(() => streamTourShowNextEvent(), 3000);
 }
 
 let streamRegionsSinceFeed = 0;
@@ -1583,8 +1593,13 @@ function showRegionLabel(name) {
   }, 2500);
 }
 
+const streamCriticalSeen = new Set();
+
 function streamCriticalInterrupt(event) {
   if (!streamMode || !event.lat || !event.lng) return;
+  const key = `${event.lat},${event.lng}:${event.message?.slice(0,30)}`;
+  if (streamCriticalSeen.has(key)) return;
+  streamCriticalSeen.add(key);
   // Cancel current tour step
   if (streamInterval) clearTimeout(streamInterval);
   // Fly immediately to critical event
