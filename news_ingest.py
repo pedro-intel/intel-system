@@ -29,13 +29,20 @@ NITTER_INSTANCES = [
     "https://nitter.kavin.rocks",
 ]
 
-NEWS_ACCOUNTS = [
-    "Reuters", "BBCBreaking", "AP", "AFP", "AJEnglish", "BNONews",
-    "middleeasteye", "disclosetv", "sentdefender", "FaytuksNetworks",
-    "Faytuks", "clashreport", "AMK_Mapping_", "Tammuz_Intel",
-    "hey_itsmyturn", "lookner", "InsiderGeo", "AZ_Intel_",
-    "Global_Mil_Info", "Osinttechnical", "RALee85", "spectatorindex",
+PRIORITY_ACCOUNTS = [
+    "FaytuksNetworks", "Faytuks", "MenchOsint", "lookner",
+    "sentdefender", "Osinttechnical", "AZ_Intel_",
+    "disclosetv", "clashreport", "BNONews",
 ]
+
+SECONDARY_ACCOUNTS = [
+    "Reuters", "BBCBreaking", "AP", "AFP", "AJEnglish",
+    "middleeasteye", "AMK_Mapping_", "Tammuz_Intel",
+    "hey_itsmyturn", "InsiderGeo",
+    "Global_Mil_Info", "RALee85", "spectatorindex",
+]
+
+NEWS_ACCOUNTS = PRIORITY_ACCOUNTS + SECONDARY_ACCOUNTS
 
 # ── COUNTRY DATA ──────────────────────────────────────────────────────────────
 COUNTRY_COORDS = {
@@ -571,7 +578,10 @@ def fetch_nitter_rss() -> list:
             feed = feedparser.parse(url)
             if not feed.entries: continue
 
-            for entry in feed.entries[:8]:
+            # Fetch more posts from priority accounts
+            max_entries = 15 if account in PRIORITY_ACCOUNTS else 8
+
+            for entry in feed.entries[:max_entries]:
                 title = entry.get("title","").strip()
                 title = re.sub(r'^RT by\s*:?\s*', '', title)
                 title = re.sub(r'^R to @\w+:\s*', '', title)
