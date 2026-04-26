@@ -150,7 +150,7 @@
   .ticker-bar { position:fixed; bottom:0; left:0; right:0; height:28px; background:rgba(0,0,0,0.92); border-top:1px solid var(--border); z-index:800; display:flex; align-items:center; overflow:hidden; }
   .ticker-label { flex-shrink:0; background:var(--crit); color:#fff; font-family:monospace; font-size:10px; letter-spacing:2px; padding:0 12px; height:100%; display:flex; align-items:center; font-weight:bold; }
   .ticker-content { flex:1; overflow:hidden; white-space:nowrap; }
-  .ticker-scroll { display:inline-block; animation:ticker 120s linear infinite; font-family:monospace; font-size:10px; color:#ccc; letter-spacing:1px; }
+  .ticker-scroll { display:inline-block; animation:ticker var(--ticker-duration, 300s) linear infinite; font-family:monospace; font-size:10px; color:#ccc; letter-spacing:1px; }
   @keyframes ticker { from{transform:translateX(100vw)} to{transform:translateX(-100%)} }
 
   /* Stream mode button */
@@ -1397,7 +1397,18 @@ function addToTicker(event) {
     `${e.type==='critical'?'🔴':e.type==='warning'?'🟡':'🔵'} [${(e.location||'?').toUpperCase()}] ${e.message}   ●   `
   ).join('');
   const el = document.getElementById('ticker-scroll');
-  if (el) el.textContent = text;
+  if (el) {
+    el.textContent = text;
+    // Set speed: ~80px per second = readable news ticker pace
+    const pxPerSec = 80;
+    const width = el.scrollWidth + window.innerWidth;
+    const duration = Math.round(width / pxPerSec);
+    document.documentElement.style.setProperty('--ticker-duration', duration + 's');
+    // Restart animation
+    el.style.animation = 'none';
+    el.offsetHeight; // reflow
+    el.style.animation = '';
+  }
 }
 
 function toggleSound() {
