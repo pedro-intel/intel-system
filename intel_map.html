@@ -124,7 +124,7 @@
 
   /* Push Leaflet controls above ticker bar */
   .leaflet-bottom { margin-bottom: 28px !important; }
-  .leaflet-control-zoom { margin-bottom: 28px; }
+  .leaflet-control-zoom { margin-bottom: 56px !important; }
   .timeline-bar { position:absolute; bottom:28px; left:0; right:320px; height:70px; background:rgba(7,13,24,.92); border-top:1px solid var(--border); padding:10px 20px; display:flex; flex-direction:column; gap:8px; z-index:900; backdrop-filter:blur(8px); transition:opacity .3s; }
   .timeline-bar.hidden{opacity:0;pointer-events:none}
   .timeline-controls { display:flex; align-items:center; gap:12px; }
@@ -1479,7 +1479,7 @@ function addToTicker(event) {
   if (el) {
     el.textContent = text;
     // Set speed: ~80px per second = readable news ticker pace
-    const pxPerSec = 80;
+    const pxPerSec = 50;
     const width = el.scrollWidth + window.innerWidth;
     const duration = Math.round(width / pxPerSec);
     document.documentElement.style.setProperty('--ticker-duration', duration + 's');
