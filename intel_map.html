@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SENTINEL // Global Intelligence Monitor</title>
+<title>SENTINEL ZERO // Global Intelligence Monitor</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
@@ -22,6 +22,7 @@
   /* HEADER */
   header { display:flex; align-items:center; justify-content:space-between; padding:0 20px; height:50px; background:var(--panel); border-bottom:1px solid var(--border); flex-shrink:0; z-index:1000; }
   .logo { font-family:'Orbitron',monospace; font-weight:900; font-size:17px; letter-spacing:4px; color:var(--accent); }
+  .logo .logo-zero { color:#ff4400; font-weight:900; font-size:17px; letter-spacing:4px; margin-left:0; }
   .logo span { color:#4a7a9b; font-weight:400; font-size:11px; letter-spacing:2px; margin-left:10px; }
   .header-right { display:flex; align-items:center; gap:24px; font-family:monospace; font-size:11px; }
   .live-badge { display:flex; align-items:center; gap:6px; color:var(--accent2); }
@@ -517,7 +518,7 @@
 <body>
 
 <header>
-  <div><span class="logo">SENTINEL<span>// GLOBAL INTEL MONITOR</span></span></div>
+  <div><span class="logo">SENTINEL<span class="logo-zero">:ZERO</span><span>// GLOBAL INTEL MONITOR</span></span></div>
   <div class="header-right">
     <div class="search-wrap">
       <input type="text" id="country-search" placeholder="🔍 Search country...">
@@ -546,11 +547,17 @@
     <button onclick="showIntelBrief()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Daily Intel Brief">📋 BRIEF</button>
     <button onclick="toggleFeeds()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Intel Feeds">📡 FEEDS</button>
     <button id="sound-toggle" onclick="toggleSound()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle sound alerts">🔇 SOUND</button>
+    <button id="music-toggle" onclick="toggleMusic()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle ambient music">🎵 MUSIC</button>
     <button onclick="toggleStreamMode()" style="background:transparent;border:1px solid #ff4400;border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:#ff4400;cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle stream mode">📺 STREAM</button>
     <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">CONNECTING</span></div>
     <div id="clock">--:--:--</div>
   </div>
 </header>
+
+<!-- Ambient music player -->
+<audio id="ambient-music" loop preload="none">
+  <source src="https://cdn.pixabay.com/audio/2024/01/10/audio_0625a95f1d.mp3" type="audio/mpeg">
+</audio>
 
 <!-- Alert toast -->
 <div class="alert-toast" id="alert-toast">🔴 BREAKING — CRITICAL EVENT DETECTED</div>
@@ -684,7 +691,7 @@
   <!-- Side panel -->
   <div class="side-panel">
     <div class="panel-header">
-      <span class="panel-title">SENTINEL FEED</span>
+      <span class="panel-title">SENTINEL ZERO FEED</span>
       <span id="event-count" style="font-family:monospace;font-size:11px;color:var(--dim)">0 events</span>
     </div>
     <div class="filters">
@@ -1601,7 +1608,45 @@ function streamCriticalInterrupt(event) {
   }, 1200);
 }
 
-// ── TICKER BAR ────────────────────────────────────────────────────────────────
+// ── AMBIENT MUSIC ─────────────────────────────────────────────────────────────
+let musicPlaying = false;
+const MUSIC_TRACKS = [
+  'https://cdn.pixabay.com/audio/2024/01/10/audio_0625a95f1d.mp3',
+  'https://cdn.pixabay.com/audio/2023/10/30/audio_6a5c6e4f0d.mp3',
+  'https://cdn.pixabay.com/audio/2022/10/30/audio_0db1e36b2e.mp3',
+];
+let musicTrackIdx = 0;
+
+function toggleMusic() {
+  const audio = document.getElementById('ambient-music');
+  const btn = document.getElementById('music-toggle');
+  if (!audio) return;
+
+  if (musicPlaying) {
+    audio.pause();
+    musicPlaying = false;
+    btn.textContent = '🎵 MUSIC';
+    btn.style.color = 'var(--dim)';
+    btn.style.borderColor = 'var(--border)';
+  } else {
+    audio.volume = 0.15; // Low ambient volume
+    audio.src = MUSIC_TRACKS[musicTrackIdx % MUSIC_TRACKS.length];
+    audio.play().then(() => {
+      musicPlaying = true;
+      btn.textContent = '🎵 PLAYING';
+      btn.style.color = '#ff4400';
+      btn.style.borderColor = '#ff4400';
+    }).catch(() => {
+      btn.textContent = '🎵 MUSIC';
+    });
+    // Next track when current ends
+    audio.onended = () => {
+      musicTrackIdx++;
+      audio.src = MUSIC_TRACKS[musicTrackIdx % MUSIC_TRACKS.length];
+      audio.play();
+    };
+  }
+}
 const tickerItems = [];
 function addToTicker(event) {
   tickerItems.push(event);
