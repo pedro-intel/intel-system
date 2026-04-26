@@ -1506,7 +1506,9 @@ function runStreamEvent(event, region) {
   map.closePopup();
   closeDetailPanel();
 
-  // Give map time to resize after detail panel closes
+  // Force markers view in stream mode (cluster view overrides flyTo)
+  if (currentView !== 'markers') setView('markers');
+
   setTimeout(() => {
     map.invalidateSize();
     map.flyTo([event.lat, event.lng], region.zoom + 1, {
@@ -1514,18 +1516,17 @@ function runStreamEvent(event, region) {
       duration: 1.5,
       easeLinearity: 0.5,
     });
-  }, 100);
+  }, 150);
 
   showRegionLabel((event.location || region.name).toUpperCase());
 
-  // Show detail after fly completes, then advance after 15s
   streamTimer = setTimeout(() => {
     if (!streamMode) return;
     map.closePopup();
     openDetail(event);
     map.invalidateSize();
     streamTimer = setTimeout(runStreamStep, 15000);
-  }, 2000);
+  }, 2200);
 }
 
 function runStreamFeed(feed) {
