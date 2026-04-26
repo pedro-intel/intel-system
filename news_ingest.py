@@ -36,8 +36,16 @@ PRIORITY_ACCOUNTS = [
 ]
 
 SECONDARY_ACCOUNTS = [
-    "Reuters", "BBCBreaking", "AP", "AFP", "AJEnglish",
-    "middleeasteye", "AMK_Mapping_", "Tammuz_Intel",
+    # Major news outlets
+    "Reuters", "BBCBreaking", "BBCWorld", "AP", "AFP", "AJEnglish",
+    "CNN", "ABC", "NBCNews", "CBSNews", "nprnews",
+    "guardian", "independent", "MailOnline",
+    "FT", "WSJ", "business",
+    "AlArabiya_Eng", "middleeasteye", "TimesMidEast",
+    "Jerusalem_Post", "IsraelHayomEng",
+    "KyivIndependent", "UAWarReport",
+    # OSINT secondary
+    "AMK_Mapping_", "Tammuz_Intel",
     "hey_itsmyturn", "InsiderGeo",
     "Global_Mil_Info", "RALee85", "spectatorindex",
 ]
@@ -529,25 +537,6 @@ def get_working_nitter() -> str | None:
 
 
 # ── GOOGLE NEWS RSS ───────────────────────────────────────────────────────────
-def fetch_google_news() -> list:
-    items = []
-    seen = set()
-
-    for url in GOOGLE_NEWS_FEEDS:
-        try:
-            feed = feedparser.parse(url)
-            for entry in feed.entries[:30]:
-                title = entry.get("title","").strip()
-                title = re.sub(r'\s+-\s+[\w\s]+$', '', title).strip()
-                if not title or not is_relevant(title): continue
-                key = dedup_key(title)
-                if key in seen: continue
-                seen.add(key)
-                items.append({"text": title, "source": "Google News"})
-        except Exception as e:
-            print(f"⚠️ Google News feed error: {e}")
-    print(f"📰 Google News: {len(items)} relevant headlines")
-    return items
 
 
 # ── NITTER RSS ────────────────────────────────────────────────────────────────
