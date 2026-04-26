@@ -1491,32 +1491,73 @@ function streamTourNextRegion() {
   setTimeout(() => streamTourShowNextEvent(), 3000);
 }
 
+// Track how many regions have been shown before showing a feed
+let streamRegionsSinceFeed = 0;
+const STREAM_FEEDS = ['markets', 'ships', 'flights'];
+let streamFeedIndex = 0;
+
 function streamTourShowNextEvent() {
   if (!streamMode || !streamCurrentRegion) return;
 
-  const { region, events } = streamCurrentRegion;
-  const maxEvents = Math.min(events.length, 4); // Show up to 4 events per region
+  const { events } = streamCurrentRegion;
+  const maxEvents = Math.min(events.length, 4);
 
   if (streamEventIndex >= maxEvents) {
-    // Done with this region — move to next
+    // Done with this region
     closeDetailPanel();
-    streamInterval = setTimeout(streamTourNextRegion, 1500);
+    streamRegionsSinceFeed++;
+
+    // Show a feed every 2 regions
+    if (streamRegionsSinceFeed >= 2) {
+      streamRegionsSinceFeed = 0;
+      streamInterval = setTimeout(streamShowFeed, 1500);
+    } else {
+      streamInterval = setTimeout(streamTourNextRegion, 1500);
+    }
     return;
   }
 
   const event = events[streamEventIndex];
   streamEventIndex++;
 
-  // Zoom into the specific event
-  map.flyTo([event.lat, event.lng], region.zoom + 1, { duration: 1.8, easeLinearity: 0.4 });
+  map.flyTo([event.lat, event.lng], streamCurrentRegion.zoom + 1, { duration: 1.8, easeLinearity: 0.4 });
 
-  // Open detail panel
   setTimeout(() => {
     if (!streamMode) return;
     openDetail(event);
-    // Show this event for 8 seconds then next
-    streamInterval = setTimeout(streamTourShowNextEvent, 8000);
+    streamInterval = setTimeout(streamTourShowNextEvent, 15000);
   }, 2000);
+}
+
+function streamShowFeed() {
+  if (!streamMode) return;
+
+  const feed = STREAM_FEEDS[streamFeedIndex % STREAM_FEEDS.length];
+  streamFeedIndex++;
+
+  // Close detail panel, open feeds panel on this tab
+  closeDetailPanel();
+
+  // Show which feed is coming up
+  const labels = { markets: '📈 MARKETS', ships: '🚢 HORMUZ SHIPPING', flights: '✈️ MIL FLIGHTS' };
+  showRegionLabel(labels[feed]);
+
+  setTimeout(() => {
+    if (!streamMode) return;
+    // Open feeds panel to the right tab
+    const panel = document.getElementById('feeds-panel');
+    if (panel) {
+      panel.style.display = 'flex';
+      feedsTab(feed);
+    }
+    // Show feed for 12 seconds then continue tour
+    streamInterval = setTimeout(() => {
+      if (!streamMode) return;
+      const panel = document.getElementById('feeds-panel');
+      if (panel) panel.style.display = 'none';
+      streamTourNextRegion();
+    }, 15000);
+  }, 1500);
 }
 
 function showRegionLabel(name) {
