@@ -616,14 +616,14 @@
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AGOLD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C215%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C215%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
     </div>
 
-    <!-- Page 3: Asia -->
+    <!-- Page 3: Asia & More -->
     <div class="market-page" id="mpage-2" style="display:none;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;height:100%;gap:4px;padding:4px;">
       <!-- KOSPI -->
-      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3AKRXKRW%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C255%2C200%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C255%2C200%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22KRX%3AKOSPI%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C255%2C200%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C255%2C200%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
       <!-- Shanghai -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22SSE%3A000001%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C50%2C50%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C50%2C50%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
-      <!-- Nikkei -->
-      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22FOREXCOM%3AJPXJPY%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C255%2C150%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C255%2C150%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
+      <!-- Natural Gas - use TVC -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3ANATURALGAS%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(100%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(100%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
       <!-- Gold -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AGOLD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C215%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C215%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
     </div>
@@ -1075,23 +1075,28 @@ function updateCountryStats() {
   sorted.forEach(([country, data], i) => {
     const pct = (data.total / maxCount * 100).toFixed(0);
     const barClass = data.critical > data.warning ? 'crit' : data.warning > 0 ? 'warn' : '';
-    
-    // Calculate escalation: ratio of critical to total
-    const critRatio = data.total > 0 ? data.critical / data.total : 0;
-    const trend = critRatio > 0.7 ? '🔴' : critRatio > 0.4 ? '🟡' : '🟢';
-    const trendLabel = critRatio > 0.7 ? 'HIGH' : critRatio > 0.4 ? 'MED' : 'LOW';
-    
+
+    // Weighted escalation score: criticals worth 3x, warnings 1.5x
+    const score = (data.critical * 3 + (data.warning||0) * 1.5) / Math.max(data.total, 1);
+    // Recent events boost (last 2 hours)
+    const now = Date.now();
+    const recentCrits = (data.events||[]).filter(e => e.type==='critical' && (now - new Date(e.time).getTime()) < 7200000).length;
+    const totalScore = score + recentCrits * 0.5;
+
+    const trend = totalScore > 2.5 ? '🔴' : totalScore > 1.2 ? '🟡' : '🟢';
+    const trendLabel = totalScore > 2.5 ? 'CRITICAL' : totalScore > 1.2 ? 'ELEVATED' : 'STABLE';
+    const trendColor = totalScore > 2.5 ? '#ff3e3e' : totalScore > 1.2 ? '#ffb800' : '#44cc88';
+
     const row = document.createElement('div');
     row.className = 'country-row';
-    row.style.cursor = 'pointer';
     row.innerHTML = `
       <span class="country-rank">${i+1}</span>
       <span class="country-name">${country}</span>
       <div class="country-bar-wrap"><div class="country-bar ${barClass}" style="width:${pct}%"></div></div>
-      <span style="font-size:9px;color:var(--dim);margin-right:4px;">${trend}</span>
+      <span style="font-size:9px;color:${trendColor};font-family:monospace;letter-spacing:1px;">${trend} ${trendLabel}</span>
       <span class="country-count">${data.total}</span>
     `;
-    row.title = `${country}: ${data.total} events | ${data.critical} critical | Escalation: ${trendLabel}`;
+    row.title = `${country}: ${data.total} events | ${data.critical} critical | ${recentCrits} recent crits | Risk: ${trendLabel}`;
     row.onclick = () => {
       switchTab('feed');
       // Filter feed to this country

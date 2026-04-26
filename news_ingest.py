@@ -389,6 +389,39 @@ STALE_PATTERNS = [
     # Help/advocacy
     r"help stop the violence",
     r"help stop.*attacks",
+    # Opinion/quote fragments
+    r"^trump,? randomly:",
+    r"^reporter:",
+    r"^trump now speaking",
+    r"^trump:",
+    r"says he has .good conversations",
+    r"in a .limbo. phase",
+    r"shifting economic focus",
+    r"resorting to buying just the basics",
+    # Ceasefire/diplomacy not kinetic
+    r"ceasefire.*between.*united states",
+    r"ongoing ceasefire",
+    r"despite.*ceasefire",
+    r"peace.*stalled",
+    r"talks.*stalled",
+    # Trump statements (political not military)
+    r"trump.*nuclear weapon.*everything",
+    r"trump.*deter me from",
+    r"trump.*cancels.*trip",
+    r"trump.*says.*unlikely",
+    # Context-free commentary
+    r"^my first thought when",
+    r"could be a possible false",
+    r"false flag",
+    # North Korea display (not active conflict)
+    r"destroyed.*equipment.*displayed",
+    r"western.*equipment.*displayed",
+    # Economic/business
+    r"\btransavia\b",
+    r"\bklm\b",
+    r"\bair france\b",
+    r"low-cost carrier",
+    r"cancel.*route",
 ]
 
 STALE_RE = [re.compile(p, re.IGNORECASE) for p in STALE_PATTERNS]
