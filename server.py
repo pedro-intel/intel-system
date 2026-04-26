@@ -11,7 +11,7 @@ from datetime import datetime
 
 from ml_model import classify_event, load_model
 from hormuz_tracker import run_hormuz_tracker, get_stats as get_hormuz_stats
-from db import save_event, get_conn
+from db import save_event, get_conn, cleanup_old_events
 from news_ingest import get_news_events
 
 app = FastAPI()
@@ -154,7 +154,9 @@ async def websocket_endpoint(websocket: WebSocket):
     for row in recent:
         event = {
             "lat": row[0], "lng": row[1],
-            "message": row[2], "type": row[3], "time": row[4]
+            "message": row[2], "type": row[3], "time": row[4],
+            "source": row[5] if len(row) > 5 else "Unknown",
+            "location": row[6] if len(row) > 6 else "Unknown",
         }
         try:
             await websocket.send_text(json.dumps(event))
@@ -279,17 +281,7 @@ async def startup_event():
         except Exception as e:
             print(f"⚠️ spaCy load failed: {e}")
     asyncio.create_task(load_model_bg())
-    # Clean up old GDELT events from DB
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM events WHERE source = 'GDELT' OR source = 'gdelt'")
-        deleted = cur.rowcount
-        conn.commit()
-        if deleted > 0:
-            print(f"🧹 Cleaned {deleted} old GDELT events from DB")
-    except Exception as e:
-        print(f"⚠️ DB cleanup error: {e}")
+    cleanup_old_events(hours=24)  # Remove old/GDELT events on startup
     asyncio.create_task(intel_loop())
     asyncio.create_task(watchdog())
     asyncio.create_task(run_hormuz_tracker())

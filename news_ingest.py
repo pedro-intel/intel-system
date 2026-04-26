@@ -419,11 +419,13 @@ def extract_country(text: str) -> tuple | None:
 
 def dedup_key(text: str) -> str:
     """Generate a deduplication key from headline text."""
-    # Normalize: lowercase, remove punctuation, collapse spaces
     normalized = re.sub(r'[^\w\s]', '', text.lower())
     normalized = re.sub(r'\s+', ' ', normalized).strip()
-    # Use first 80 chars as key to catch slightly different versions of same story
-    return normalized[:80]
+    # Remove common prefixes that vary between sources
+    for prefix in ['breaking ', 'just in ', 'update ', 'developing ', 'new ']:
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix):]
+    return normalized[:100]
 
 
 # ── NITTER HEALTH CHECK ───────────────────────────────────────────────────────
@@ -538,8 +540,8 @@ def items_to_events(items: list) -> list:
 
         lat, lng, country = result
 
-        # Deduplicate by country + first 6 words of text
-        words    = text.lower().split()[:6]
+        # Deduplicate by country + first 8 words of text
+        words    = re.sub(r'[^\w\s]', '', text.lower()).split()[:8]
         dedup    = f"{country}:{''.join(words)}"
         if dedup in seen_keys: continue
         seen_keys.add(dedup)

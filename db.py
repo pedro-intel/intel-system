@@ -49,9 +49,11 @@ def init_db():
                 id      SERIAL PRIMARY KEY,
                 lat     DOUBLE PRECISION NOT NULL,
                 lng     DOUBLE PRECISION NOT NULL,
-                message TEXT,
-                type    TEXT,
-                time    TEXT
+                message  TEXT,
+                type     TEXT,
+                time     TEXT,
+                source   TEXT DEFAULT 'Unknown',
+                location TEXT DEFAULT 'Unknown'
             )
         """)
     else:
@@ -67,9 +69,11 @@ def init_db():
                 id      INTEGER PRIMARY KEY AUTOINCREMENT,
                 lat     REAL    NOT NULL,
                 lng     REAL    NOT NULL,
-                message TEXT,
-                type    TEXT,
-                time    TEXT
+                message  TEXT,
+                type     TEXT,
+                time     TEXT,
+                source   TEXT DEFAULT 'Unknown',
+                location TEXT DEFAULT 'Unknown'
             )
         """)
 
@@ -89,24 +93,28 @@ def save_event(event: dict):
 
         if USE_POSTGRES:
             cur.execute(
-                "INSERT INTO events (lat, lng, message, type, time) VALUES (%s, %s, %s, %s, %s)",
+                "INSERT INTO events (lat, lng, message, type, time, source, location) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                 (
                     event.get("lat"),
                     event.get("lng"),
                     event.get("message", ""),
                     event.get("type", "info"),
                     event.get("time", datetime.utcnow().isoformat()),
+                    event.get("source", "Unknown"),
+                    event.get("location", "Unknown"),
                 )
             )
         else:
             cur.execute(
-                "INSERT INTO events (lat, lng, message, type, time) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO events (lat, lng, message, type, time, source, location) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     event.get("lat"),
                     event.get("lng"),
                     event.get("message", ""),
                     event.get("type", "info"),
                     event.get("time", datetime.utcnow().isoformat()),
+                    event.get("source", "Unknown"),
+                    event.get("location", "Unknown"),
                 )
             )
 
@@ -134,12 +142,12 @@ def get_recent_events(limit: int = 100):
 
         if USE_POSTGRES:
             cur.execute(
-                "SELECT lat, lng, message, type, time FROM events ORDER BY id DESC LIMIT %s",
+                "SELECT lat, lng, message, type, time, source, location FROM events ORDER BY id DESC LIMIT %s",
                 (limit,)
             )
         else:
             cur.execute(
-                "SELECT lat, lng, message, type, time FROM events ORDER BY id DESC LIMIT ?",
+                "SELECT lat, lng, message, type, time, source, location FROM events ORDER BY id DESC LIMIT ?",
                 (limit,)
             )
 
@@ -181,3 +189,30 @@ def get_events_since(hours: int = 24) -> list:
     except Exception as e:
         print(f"⚠️ DB get_events_since error: {e}")
         return []
+
+
+def cleanup_old_events(hours: int = 24):
+    """Delete events older than N hours and GDELT events."""
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("""
+                DELETE FROM events 
+                WHERE time::timestamp < NOW() - INTERVAL '1 hour' * %s
+                OR source IN ('GDELT', 'gdelt')
+            """, (hours,))
+        else:
+            cur.execute("""
+                DELETE FROM events 
+                WHERE time < datetime('now', ?)
+                OR source IN ('GDELT', 'gdelt')
+            """, (f'-{hours} hours',))
+        deleted = cur.rowcount
+        conn.commit()
+        if deleted > 0:
+            print(f"🧹 Cleaned {deleted} old/GDELT events from DB")
+        return deleted
+    except Exception as e:
+        print(f"⚠️ DB cleanup error: {e}")
+        return 0
