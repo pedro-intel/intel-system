@@ -56,6 +56,12 @@ def init_db():
                 location TEXT DEFAULT 'Unknown'
             )
         """)
+        # Safely add columns if they don't exist
+        for col, typ in [("source", "TEXT DEFAULT 'Unknown'"), ("location", "TEXT DEFAULT 'Unknown'")]:
+            try:
+                cur.execute(f"ALTER TABLE events ADD COLUMN IF NOT EXISTS {col} {typ}")
+            except Exception:
+                pass
     else:
         # SQLite: detect and migrate old schema (lon → lng)
         cur.execute("PRAGMA table_info(events)")
@@ -192,27 +198,42 @@ def get_events_since(hours: int = 24) -> list:
 
 
 def cleanup_old_events(hours: int = 24):
-    """Delete events older than N hours and GDELT events."""
+    """Delete GDELT events and events older than N hours."""
     try:
         conn = get_conn()
         cur = conn.cursor()
         if USE_POSTGRES:
-            cur.execute("""
-                DELETE FROM events 
-                WHERE time::timestamp < NOW() - INTERVAL '1 hour' * %s
-                OR source IN ('GDELT', 'gdelt')
-            """, (hours,))
+            # Delete GDELT events
+            cur.execute("DELETE FROM events WHERE source IN ('GDELT', 'gdelt')")
+            gdelt_deleted = cur.rowcount
+            # Delete old events safely
+            try:
+                cur.execute("""
+                    DELETE FROM events 
+                    WHERE time IS NOT NULL 
+                    AND time != ''
+                    AND time::timestamp < NOW() - INTERVAL '1 hour' * %s
+                """, (hours,))
+                old_deleted = cur.rowcount
+            except Exception:
+                old_deleted = 0
         else:
-            cur.execute("""
-                DELETE FROM events 
-                WHERE time < datetime('now', ?)
-                OR source IN ('GDELT', 'gdelt')
-            """, (f'-{hours} hours',))
-        deleted = cur.rowcount
+            cur.execute("DELETE FROM events WHERE source IN ('GDELT', 'gdelt')")
+            gdelt_deleted = cur.rowcount
+            try:
+                cur.execute("""
+                    DELETE FROM events 
+                    WHERE time >= '' 
+                    AND time < datetime('now', ?)
+                """, (f'-{hours} hours',))
+                old_deleted = cur.rowcount
+            except Exception:
+                old_deleted = 0
         conn.commit()
-        if deleted > 0:
-            print(f"🧹 Cleaned {deleted} old/GDELT events from DB")
-        return deleted
+        total = gdelt_deleted + old_deleted
+        if total > 0:
+            print(f"🧹 Cleaned {gdelt_deleted} GDELT + {old_deleted} old events from DB")
+        return total
     except Exception as e:
         print(f"⚠️ DB cleanup error: {e}")
         return 0
