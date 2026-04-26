@@ -190,12 +190,19 @@ async def broadcast(event: dict):
 
 
 # ── MAIN INTEL LOOP ───────────────────────────────────────────────────────────
-# Shared seen_keys across both loops
+# Shared seen_keys across both loops — persists for 1 hour
 _seen_keys: set = set()
+_seen_keys_reset: float = 0.0
 
 async def _process_events(events: list, source_label: str):
     """Broadcast new events, dedup against seen_keys."""
-    global _seen_keys
+    global _seen_keys, _seen_keys_reset
+    import time
+    # Reset seen_keys every hour
+    now = time.time()
+    if now - _seen_keys_reset > 3600:
+        _seen_keys.clear()
+        _seen_keys_reset = now
     loop = asyncio.get_event_loop()
     new_count = 0
     skipped = 0
@@ -205,8 +212,6 @@ async def _process_events(events: list, source_label: str):
             skipped += 1
             continue
         _seen_keys.add(key)
-        if len(_seen_keys) > 2000:
-            _seen_keys.clear()
         event["time"] = datetime.utcnow().isoformat()
         print(f"📡 [{event['type'].upper()}] {event.get('location','?')}: {event['message'][:70]}")
         save_event(event)

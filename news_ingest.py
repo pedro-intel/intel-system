@@ -6,7 +6,7 @@ import re
 import requests
 import feedparser
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 HEADERS = {"User-Agent": "intel-system/1.0"}
 
@@ -353,18 +353,29 @@ STALE_PATTERNS = [
     r"uk joins france.*poland.*greece",
     r"eu military plans",
     r"nato allies.*lack of support",
-    # Opinion/analysis
-    r"europe pushes back on",
-    r"pushes back on some",
-    r"concern(s)? about",
-    r"worry about",
-    r"what.*means for",
-    r"what this means",
-    r"implications of",
-    r"impact of.*war",
-    r"lessons from",
-    r"looking back",
-    r"in retrospect",
+    # Encyclopedic/background info
+    r"is one of the most important",
+    r"is known to host",
+    r"is considered one of",
+    r"has been described as",
+    r"long considered",
+    # Irrelevant tech/apps
+    r"\bsignal app\b",
+    r"\bend-to-end encrypt",
+    r"\bmessaging app\b",
+    # Live blog titles
+    r"^🔴 live:",
+    r"^live blog:",
+    r"\| day \d+",
+    r"day \d+ -",
+    # Random/context-free statements  
+    r"^my first thought",
+    r"^reporter:",
+    r"^speaking at an event",
+    r"zionist foundation",
+    # Help/advocacy
+    r"help stop the violence",
+    r"help stop.*attacks",
 ]
 
 STALE_RE = [re.compile(p, re.IGNORECASE) for p in STALE_PATTERNS]
@@ -514,13 +525,23 @@ def get_working_nitter() -> str | None:
 def fetch_google_news() -> list:
     items = []
     seen = set()
+    cutoff = datetime.utcnow() - timedelta(hours=6)
+
     for url in GOOGLE_NEWS_FEEDS:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:20]:
+            for entry in feed.entries[:30]:
                 title = entry.get("title","").strip()
                 title = re.sub(r'\s+-\s+[\w\s]+$', '', title).strip()
                 if not title or not is_relevant(title): continue
+
+                # Time filter — skip articles older than 6 hours
+                published = entry.get("published_parsed") or entry.get("updated_parsed")
+                if published:
+                    pub_dt = datetime(*published[:6])
+                    if pub_dt < cutoff:
+                        continue
+
                 key = dedup_key(title)
                 if key in seen: continue
                 seen.add(key)
@@ -535,6 +556,7 @@ def fetch_google_news() -> list:
 def fetch_nitter_rss() -> list:
     items = []
     seen = set()
+    cutoff = datetime.utcnow() - timedelta(hours=3)
 
     instance = get_working_nitter()
     if not instance:
@@ -553,7 +575,6 @@ def fetch_nitter_rss() -> list:
                 title = re.sub(r'https?://\S+', '', title).strip()
                 title = re.sub(r'@\w+\s*', '', title).strip()
                 title = re.sub(r'#\w+\s*', '', title).strip()
-                # Trim at sentence break if too long
                 if len(title) > 180:
                     for sep in ['. ', '! ', '? ']:
                         idx = title[:160].rfind(sep)
@@ -562,6 +583,14 @@ def fetch_nitter_rss() -> list:
                         title = title[:180].rsplit(' ', 1)[0] + '...'
 
                 if not title or not is_relevant(title): continue
+
+                # Time filter — skip posts older than 3 hours
+                published = entry.get("published_parsed") or entry.get("updated_parsed")
+                if published:
+                    pub_dt = datetime(*published[:6])
+                    if pub_dt < cutoff:
+                        continue
+
                 key = dedup_key(title)
                 if key in seen: continue
                 seen.add(key)
