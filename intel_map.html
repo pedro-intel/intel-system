@@ -1537,8 +1537,8 @@ function streamTourShowNextEvent() {
   // Fly to specific event
   map.flyTo([event.lat, event.lng], streamCurrentRegion.zoom + 1, { duration: 1.8, easeLinearity: 0.4 });
 
-  // Open detail panel after fly — force it open directly
-  setTimeout(() => {
+  // Open detail panel after fly — store timeout so it can be cancelled
+  streamInterval = setTimeout(() => {
     if (!streamMode) return;
     map.closePopup();
     openDetail(event);
@@ -1559,7 +1559,7 @@ function streamShowFeed() {
   const labels = { markets: '📈 MARKETS', ships: '🚢 HORMUZ SHIPPING', flights: '✈️ MIL FLIGHTS' };
   showRegionLabel(labels[feed]);
 
-  setTimeout(() => {
+  streamInterval = setTimeout(() => {
     if (!streamMode) return;
     // Open feeds panel to the right tab
     const panel = document.getElementById('feeds-panel');
@@ -1567,7 +1567,7 @@ function streamShowFeed() {
       panel.style.display = 'flex';
       feedsTab(feed);
     }
-    // Show feed for 12 seconds then continue tour
+    // Show feed for 15 seconds then continue tour
     streamInterval = setTimeout(() => {
       if (!streamMode) return;
       const panel = document.getElementById('feeds-panel');
@@ -1602,15 +1602,13 @@ function streamCriticalInterrupt(event) {
   streamCriticalSeen.add(key);
   // Cancel current tour step
   if (streamInterval) clearTimeout(streamInterval);
-  // Fly immediately to critical event
   map.flyTo([event.lat, event.lng], 6, { duration: 1.2, easeLinearity: 0.5 });
-  setTimeout(() => {
+  streamInterval = setTimeout(() => {
     if (!streamMode) return;
     openDetail(event);
-    // Resume region tour after 15 seconds
     streamInterval = setTimeout(() => {
       closeDetailPanel();
-      setTimeout(streamTourNextRegion, 1000);
+      streamInterval = setTimeout(streamTourNextRegion, 1000);
     }, 15000);
   }, 1500);
 }
