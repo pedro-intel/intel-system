@@ -200,10 +200,33 @@ CONFLICT_KEYWORDS = [
 ]
 
 CRITICAL_WORDS = [
-    "killed","dead","casualties","bombing","airstrike","missile","explosion",
-    "massacre","attack","battle","fighting","war","nuclear","hostage","kidnap",
-    "shelling","drone strike","wounded","clash","offensive","assault","fires",
+    "killed", "dead", "casualties", "airstrike", "missile strike",
+    "missile attack", "explosion", "massacre", "bombing", "drone strike",
+    "shelling", "hostage", "kidnap", "wounded", "soldiers killed",
+    "troops killed", "civilians killed", "strikes kill", "attack kills",
+    "shoot down", "shot down", "sunk", "torpedoed", "intercepted missile",
 ]
+
+# Phrases that should NOT trigger CRITICAL even if CRITICAL_WORDS match
+DOWNGRADE_PATTERNS = [
+    r"\beurope pushes back\b",
+    r"\bpushes back on\b",
+    r"\bconcern(s|ed)?\b.*war",
+    r"\bwar.*concern",
+    r"\banalysis\b", r"\bopinion\b", r"\bcommentary\b",
+    r"\bwhat.*means\b", r"\bwhy.*matter",
+    r"trump says he would never",
+    r"rules out",
+    r"unlikely",
+    r"\bif\b.*\bnuclear\b",
+    r"risk of war",
+    r"danger of war",
+    r"braces for",
+    r"fears of",
+    r"warns of",
+]
+
+DOWNGRADE_RE = [re.compile(p, re.IGNORECASE) for p in DOWNGRADE_PATTERNS]
 
 WARNING_WORDS = [
     "military","troops","conflict","sanction","protest","crisis","threat",
@@ -286,6 +309,18 @@ STALE_PATTERNS = [
     r"uk joins france.*poland.*greece",
     r"eu military plans",
     r"nato allies.*lack of support",
+    # Opinion/analysis
+    r"europe pushes back on",
+    r"pushes back on some",
+    r"concern(s)? about",
+    r"worry about",
+    r"what.*means for",
+    r"what this means",
+    r"implications of",
+    r"impact of.*war",
+    r"lessons from",
+    r"looking back",
+    r"in retrospect",
 ]
 
 STALE_RE = [re.compile(p, re.IGNORECASE) for p in STALE_PATTERNS]
@@ -301,8 +336,14 @@ def is_relevant(text: str) -> bool:
 
 def classify_text(text: str) -> str:
     t = text.lower()
-    if any(w in t for w in CRITICAL_WORDS): return "critical"
-    if any(w in t for w in WARNING_WORDS):  return "warning"
+    # Check if it matches critical words
+    if any(w in t for w in CRITICAL_WORDS):
+        # But downgrade if it's analysis/opinion
+        if any(p.search(text) for p in DOWNGRADE_RE):
+            return "warning"
+        return "critical"
+    if any(w in t for w in WARNING_WORDS):
+        return "warning"
     return "info"
 
 
