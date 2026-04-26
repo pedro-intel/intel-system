@@ -1491,7 +1491,6 @@ function streamTourNextRegion() {
   setTimeout(() => streamTourShowNextEvent(), 3000);
 }
 
-// Track how many regions have been shown before showing a feed
 let streamRegionsSinceFeed = 0;
 const STREAM_FEEDS = ['markets', 'ships', 'flights'];
 let streamFeedIndex = 0;
@@ -1505,6 +1504,7 @@ function streamTourShowNextEvent() {
   if (streamEventIndex >= maxEvents) {
     // Done with this region
     closeDetailPanel();
+    map.closePopup(); // close any open popups
     streamRegionsSinceFeed++;
 
     // Show a feed every 2 regions
@@ -1520,13 +1520,20 @@ function streamTourShowNextEvent() {
   const event = events[streamEventIndex];
   streamEventIndex++;
 
+  // Close any open popups first
+  map.closePopup();
+  closeDetailPanel();
+
+  // Fly to specific event
   map.flyTo([event.lat, event.lng], streamCurrentRegion.zoom + 1, { duration: 1.8, easeLinearity: 0.4 });
 
+  // Open detail panel after fly — force it open directly
   setTimeout(() => {
     if (!streamMode) return;
+    map.closePopup();
     openDetail(event);
     streamInterval = setTimeout(streamTourShowNextEvent, 15000);
-  }, 2000);
+  }, 2200);
 }
 
 function streamShowFeed() {
