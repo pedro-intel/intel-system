@@ -155,13 +155,12 @@
   .ticker-scroll { display:inline-block; animation:ticker var(--ticker-duration, 300s) linear infinite; font-family:monospace; font-size:10px; color:#ccc; letter-spacing:1px; }
   @keyframes ticker { from{transform:translateX(100vw)} to{transform:translateX(-100%)} }
 
-  /* Stream mode button */
-  .stream-btn { background:transparent; border:1px solid #ff4400; color:#ff4400; font-family:monospace; font-size:9px; letter-spacing:1px; padding:4px 8px; cursor:pointer; border-radius:2px; }
-  .stream-btn:hover { background:#ff4400; color:#000; }
-  .stream-mode .side-panel, .stream-mode .detail-panel { display:none !important; }
+  /* Stream mode */
+  .stream-mode .side-panel { display:none !important; }
   .stream-mode .ticker-bar { display:flex; }
   .stream-mode #map { right:0 !important; }
-  .stream-mode .detail-panel { display:flex !important; width:380px !important; right:0 !important; }
+  .stream-mode .detail-panel { display:none; width:360px !important; right:0 !important; }
+  .stream-mode .detail-panel.open { display:flex !important; }
   .stream-mode .detail-close { display:none; }
 
   /* LEAFLET OVERRIDES */
@@ -1022,6 +1021,7 @@ function closeDetail() {
   document.getElementById('detail-panel').classList.remove('open');
   currentDetailEvent = null;
 }
+function closeDetailPanel() { closeDetail(); }
 
 function openDetailByIdx(idx) {
   const event = allEvents[idx];
@@ -1506,15 +1506,24 @@ function runStreamEvent(event, region) {
   map.closePopup();
   closeDetailPanel();
 
-  // Fly to event
-  map.setView([event.lat, event.lng], region.zoom + 1, { animate: true, duration: 1.5 });
+  // Give map time to resize after detail panel closes
+  setTimeout(() => {
+    map.invalidateSize();
+    map.flyTo([event.lat, event.lng], region.zoom + 1, {
+      animate: true,
+      duration: 1.5,
+      easeLinearity: 0.5,
+    });
+  }, 100);
+
   showRegionLabel((event.location || region.name).toUpperCase());
 
-  // Show detail after 2s, then advance after 15s
+  // Show detail after fly completes, then advance after 15s
   streamTimer = setTimeout(() => {
     if (!streamMode) return;
     map.closePopup();
     openDetail(event);
+    map.invalidateSize();
     streamTimer = setTimeout(runStreamStep, 15000);
   }, 2000);
 }
