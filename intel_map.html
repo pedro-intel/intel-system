@@ -1391,8 +1391,59 @@ let audioCtx = null;
 // ── STREAM MODE ───────────────────────────────────────────────────────────────
 let streamMode = false;
 let streamInterval = null;
-let streamIndex = 0;
-let streamPaused = false;
+let streamRegionIndex = 0;
+let streamEventIndex = 0;
+let streamCurrentRegion = null;
+
+// Define world regions with center coords and zoom
+function getActiveRegions() {
+  // Dynamically cluster events by proximity — only visit regions with news
+  const events = allEvents.filter(e => e.lat && e.lng);
+  if (events.length === 0) return [];
+
+  const clusters = [];
+  const used = new Set();
+
+  // Sort criticals first so they anchor clusters
+  const sorted = [...events].sort((a,b) => {
+    const s = {critical:3,warning:2,info:1};
+    return (s[b.type]||0) - (s[a.type]||0);
+  });
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (used.has(i)) continue;
+    const anchor = sorted[i];
+    const cluster = [anchor];
+    used.add(i);
+
+    for (let j = i+1; j < sorted.length; j++) {
+      if (used.has(j)) continue;
+      const e = sorted[j];
+      if (Math.abs(e.lat - anchor.lat) < 18 && Math.abs(e.lng - anchor.lng) < 22) {
+        cluster.push(e);
+        used.add(j);
+      }
+    }
+
+    const avgLat = cluster.reduce((s,e) => s+e.lat, 0) / cluster.length;
+    const avgLng = cluster.reduce((s,e) => s+e.lng, 0) / cluster.length;
+    const hasCritical = cluster.some(e => e.type === 'critical');
+
+    clusters.push({
+      lat: avgLat, lng: avgLng,
+      zoom: hasCritical ? 5 : 4,
+      events: cluster.slice(0, 4),
+      name: cluster[0].location || 'REGION',
+    });
+  }
+
+  // Sort: most active/critical regions first
+  return clusters.sort((a,b) => {
+    const aScore = a.events.filter(e=>e.type==='critical').length*3 + a.events.length;
+    const bScore = b.events.filter(e=>e.type==='critical').length*3 + b.events.length;
+    return bScore - aScore;
+  });
+}
 
 function toggleStreamMode() {
   streamMode = !streamMode;
@@ -1402,69 +1453,103 @@ function toggleStreamMode() {
     startStreamTour();
   } else {
     stopStreamTour();
-    // Restore default map view
     closeDetailPanel();
     map.setView([20, 20], 2);
   }
 }
 
 function startStreamTour() {
-  streamIndex = 0;
-  streamTourStep();
-  // Cycle every 12 seconds
-  streamInterval = setInterval(streamTourStep, 12000);
+  streamRegionIndex = 0;
+  streamEventIndex = 0;
+  streamTourNextRegion();
 }
 
 function stopStreamTour() {
-  if (streamInterval) clearInterval(streamInterval);
+  if (streamInterval) clearTimeout(streamInterval);
   streamInterval = null;
 }
 
-function streamTourStep() {
-  if (!streamMode || allEvents.length === 0) return;
+function streamTourNextRegion() {
+  if (!streamMode) return;
 
-  // Sort: criticals first, then by time desc
-  const sorted = [...allEvents]
-    .filter(e => e.lat && e.lng)
-    .sort((a, b) => {
-      const score = {critical:3, warning:2, info:1};
-      return (score[b.type]||0) - (score[a.type]||0);
-    });
+  const regions = getActiveRegions();
+  if (regions.length === 0) {
+    streamInterval = setTimeout(streamTourNextRegion, 8000);
+    return;
+  }
 
-  if (sorted.length === 0) return;
+  const region = regions[streamRegionIndex % regions.length];
+  streamRegionIndex++;
 
-  // Cycle through top events
-  const event = sorted[streamIndex % Math.min(sorted.length, 20)];
-  streamIndex++;
+  streamCurrentRegion = region;
+  streamEventIndex = 0;
 
-  // Fly to event
-  const zoom = event.type === 'critical' ? 5 : 4;
-  map.flyTo([event.lat, event.lng], zoom, { duration: 2.5, easeLinearity: 0.3 });
+  // Fly to cluster center
+  map.flyTo([region.lat, region.lng], region.zoom, { duration: 2.5, easeLinearity: 0.3 });
+  showRegionLabel(region.name.toUpperCase());
 
-  // Open detail panel after fly animation
-  setTimeout(() => {
-    if (!streamMode) return;
-    openDetail(event);
-  }, 2800);
+  setTimeout(() => streamTourShowNextEvent(), 3000);
 }
 
-// Override openDetail to work in stream mode without blocking
-function streamCriticalInterrupt(event) {
-  if (!streamMode) return;
-  // Immediately jump to critical event
-  stopStreamTour();
-  streamIndex = 0;
-  map.flyTo([event.lat, event.lng], 5, { duration: 1.5, easeLinearity: 0.5 });
+function streamTourShowNextEvent() {
+  if (!streamMode || !streamCurrentRegion) return;
+
+  const { region, events } = streamCurrentRegion;
+  const maxEvents = Math.min(events.length, 4); // Show up to 4 events per region
+
+  if (streamEventIndex >= maxEvents) {
+    // Done with this region — move to next
+    closeDetailPanel();
+    streamInterval = setTimeout(streamTourNextRegion, 1500);
+    return;
+  }
+
+  const event = events[streamEventIndex];
+  streamEventIndex++;
+
+  // Zoom into the specific event
+  map.flyTo([event.lat, event.lng], region.zoom + 1, { duration: 1.8, easeLinearity: 0.4 });
+
+  // Open detail panel
   setTimeout(() => {
     if (!streamMode) return;
     openDetail(event);
-    // Resume tour after 20 seconds
-    setTimeout(() => {
-      if (streamMode) {
-        startStreamTour();
-      }
-    }, 20000);
-  }, 1800);
+    // Show this event for 8 seconds then next
+    streamInterval = setTimeout(streamTourShowNextEvent, 8000);
+  }, 2000);
+}
+
+function showRegionLabel(name) {
+  const toast = document.getElementById('alert-toast');
+  if (!toast) return;
+  const prev = toast.textContent;
+  const prevClass = toast.className;
+  toast.textContent = `📍 REGION: ${name}`;
+  toast.style.background = 'rgba(0,100,200,0.9)';
+  toast.style.border = '2px solid #0088ff';
+  toast.classList.add('show');
+  setTimeout(() => {
+    toast.classList.remove('show');
+    toast.style.background = '';
+    toast.style.border = '';
+  }, 2500);
+}
+
+function streamCriticalInterrupt(event) {
+  if (!streamMode || !event.lat || !event.lng) return;
+  // Cancel current tour step
+  if (streamInterval) clearTimeout(streamInterval);
+  // Fly immediately to critical event
+  map.flyTo([event.lat, event.lng], 6, { duration: 1.2, easeLinearity: 0.5 });
+  setTimeout(() => {
+    if (!streamMode) return;
+    openDetail(event);
+    // Resume region tour after 15 seconds
+    streamInterval = setTimeout(() => {
+      closeDetailPanel();
+      setTimeout(streamTourNextRegion, 1000);
+    }, 15000);
+  }, 1500);
 }
 
 // ── TICKER BAR ────────────────────────────────────────────────────────────────
