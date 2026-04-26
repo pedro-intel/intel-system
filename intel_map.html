@@ -939,8 +939,10 @@ function toggleFeeds() {
 function feedsTab(tab) {
   document.querySelectorAll('.feeds-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.feeds-content').forEach(c => c.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById(`feeds-${tab}`).classList.add('active');
+  const tabBtn = document.querySelector(`.feeds-tab[onclick*="${tab}"]`);
+  if (tabBtn) tabBtn.classList.add('active');
+  const content = document.getElementById(`feeds-${tab}`);
+  if (content) content.classList.add('active');
 }
 
 // ── MAP ───────────────────────────────────────────────────────────────────────
@@ -1463,12 +1465,31 @@ function getActiveRegions() {
 function toggleStreamMode() {
   streamMode = !streamMode;
   document.body.classList.toggle('stream-mode', streamMode);
-  setTimeout(() => map.invalidateSize(), 300);
+
   if (streamMode) {
-    streamStep = 0;
-    streamSteps = buildStreamSteps();
-    runStreamStep();
+    // Lock map - disable all user interaction
+    map.dragging.disable();
+    map.touchZoom.disable();
+    map.doubleClickZoom.disable();
+    map.scrollWheelZoom.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+    // Force markers view
+    if (currentView !== 'markers') setView('markers');
+    setTimeout(() => {
+      map.invalidateSize();
+      streamStep = 0;
+      streamSteps = buildStreamSteps();
+      runStreamStep();
+    }, 300);
   } else {
+    // Unlock map
+    map.dragging.enable();
+    map.touchZoom.enable();
+    map.doubleClickZoom.enable();
+    map.scrollWheelZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
     if (streamTimer) clearTimeout(streamTimer);
     streamTimer = null;
     closeDetailPanel();
@@ -1505,28 +1526,18 @@ function runStreamStep() {
 function runStreamEvent(event, region) {
   map.closePopup();
   closeDetailPanel();
+  map.invalidateSize();
 
-  // Force markers view in stream mode (cluster view overrides flyTo)
-  if (currentView !== 'markers') setView('markers');
-
-  setTimeout(() => {
-    map.invalidateSize();
-    map.flyTo([event.lat, event.lng], region.zoom + 1, {
-      animate: true,
-      duration: 1.5,
-      easeLinearity: 0.5,
-    });
-  }, 150);
+  const zoom = region.zoom + 1;
+  map.flyTo([event.lat, event.lng], zoom, { animate: true, duration: 1.5, easeLinearity: 0.5 });
 
   showRegionLabel((event.location || region.name).toUpperCase());
 
   streamTimer = setTimeout(() => {
     if (!streamMode) return;
-    map.closePopup();
     openDetail(event);
-    map.invalidateSize();
     streamTimer = setTimeout(runStreamStep, 15000);
-  }, 2200);
+  }, 2500);
 }
 
 function runStreamFeed(feed) {
@@ -1538,11 +1549,15 @@ function runStreamFeed(feed) {
   streamTimer = setTimeout(() => {
     if (!streamMode) return;
     const panel = document.getElementById('feeds-panel');
-    if (panel) { panel.style.display = 'flex'; feedsTab(feed); }
+    if (panel) {
+      panel.classList.add('open');
+      feedsTab(feed);
+      if (feed === 'markets') showMarketPage(0);
+    }
     streamTimer = setTimeout(() => {
       if (!streamMode) return;
       const panel = document.getElementById('feeds-panel');
-      if (panel) panel.style.display = 'none';
+      if (panel) panel.classList.remove('open');
       runStreamStep();
     }, 15000);
   }, 1500);
