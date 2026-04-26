@@ -159,6 +159,8 @@
   .stream-mode .side-panel, .stream-mode .detail-panel { display:none !important; }
   .stream-mode .ticker-bar { display:flex; }
   .stream-mode #map { right:0 !important; }
+  .stream-mode .detail-panel { display:flex !important; width:380px !important; right:0 !important; }
+  .stream-mode .detail-close { display:none; }
 
   /* LEAFLET OVERRIDES */
   .leaflet-popup-content-wrapper{background:#070d18;border:1px solid #0d2238;border-radius:4px;color:#c8dff0;font-family:'IBM Plex Sans',sans-serif}
@@ -1208,6 +1210,10 @@ function processEvent(data){
   allMarkers.push({marker,event:data});allEvents.push(data);
   if(currentView==='heatmap'){heatPoints.push([data.lat,data.lng,HEAT_I[data.type]||.3]);heatLayer.setLatLngs(heatPoints);}
   addEventCard(data,marker);updateStats(data);addToTicker(data);
+  // Stream mode: interrupt for critical events
+  if (streamMode && data.type === 'critical' && data.lat && data.lng) {
+    streamCriticalInterrupt(data);
+  }
 }
 
 // ── FEATURE 5: COUNTRY SEARCH ─────────────────────────────────────────────────
@@ -1382,10 +1388,81 @@ let audioCtx = null;
 
 // ── STREAM MODE ───────────────────────────────────────────────────────────────
 let streamMode = false;
+let streamInterval = null;
+let streamIndex = 0;
+let streamPaused = false;
+
 function toggleStreamMode() {
   streamMode = !streamMode;
   document.body.classList.toggle('stream-mode', streamMode);
   setTimeout(() => map.invalidateSize(), 300);
+  if (streamMode) {
+    startStreamTour();
+  } else {
+    stopStreamTour();
+    // Restore default map view
+    closeDetailPanel();
+    map.setView([20, 20], 2);
+  }
+}
+
+function startStreamTour() {
+  streamIndex = 0;
+  streamTourStep();
+  // Cycle every 12 seconds
+  streamInterval = setInterval(streamTourStep, 12000);
+}
+
+function stopStreamTour() {
+  if (streamInterval) clearInterval(streamInterval);
+  streamInterval = null;
+}
+
+function streamTourStep() {
+  if (!streamMode || allEvents.length === 0) return;
+
+  // Sort: criticals first, then by time desc
+  const sorted = [...allEvents]
+    .filter(e => e.lat && e.lng)
+    .sort((a, b) => {
+      const score = {critical:3, warning:2, info:1};
+      return (score[b.type]||0) - (score[a.type]||0);
+    });
+
+  if (sorted.length === 0) return;
+
+  // Cycle through top events
+  const event = sorted[streamIndex % Math.min(sorted.length, 20)];
+  streamIndex++;
+
+  // Fly to event
+  const zoom = event.type === 'critical' ? 6 : 5;
+  map.flyTo([event.lat, event.lng], zoom, { duration: 2.5, easeLinearity: 0.3 });
+
+  // Open detail panel after fly animation
+  setTimeout(() => {
+    if (!streamMode) return;
+    openDetail(event);
+  }, 2800);
+}
+
+// Override openDetail to work in stream mode without blocking
+function streamCriticalInterrupt(event) {
+  if (!streamMode) return;
+  // Immediately jump to critical event
+  stopStreamTour();
+  streamIndex = 0;
+  map.flyTo([event.lat, event.lng], 7, { duration: 1.5, easeLinearity: 0.5 });
+  setTimeout(() => {
+    if (!streamMode) return;
+    openDetail(event);
+    // Resume tour after 20 seconds
+    setTimeout(() => {
+      if (streamMode) {
+        startStreamTour();
+      }
+    }, 20000);
+  }, 1800);
 }
 
 // ── TICKER BAR ────────────────────────────────────────────────────────────────
