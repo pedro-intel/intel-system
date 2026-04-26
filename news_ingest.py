@@ -380,6 +380,12 @@ STALE_PATTERNS = [
     r"^reporter:",
     r"^speaking at an event",
     r"zionist foundation",
+    # Sports
+    r"\bfootball\b", r"\bsoccer\b", r"\bgoal\b.*score", r"\bstrike.*pose\b",
+    r"\bforward\b.*\bturkey\b", r"\bgalatasaray\b", r"\bfifa\b",
+    # Airlines/business noise
+    r"\blow-cost airline\b", r"\bair france\b", r"\bklm group\b",
+    r"\bcancel.*flights\b", r"\bflight.*cancel\b",
     # Help/advocacy
     r"help stop the violence",
     r"help stop.*attacks",
