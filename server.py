@@ -12,7 +12,7 @@ from datetime import datetime
 from ml_model import classify_event, load_model
 from hormuz_tracker import run_hormuz_tracker, get_stats as get_hormuz_stats
 from db import save_event, get_conn, cleanup_old_events
-from news_ingest import get_news_events
+from news_ingest import get_news_events, fetch_nitter_rss, fetch_google_news, items_to_events
 
 app = FastAPI()
 
@@ -190,58 +190,58 @@ async def broadcast(event: dict):
 
 
 # ── MAIN INTEL LOOP ───────────────────────────────────────────────────────────
-async def intel_loop():
-    global _loop_running
+# Shared seen_keys across both loops
+_seen_keys: set = set()
 
+async def _process_events(events: list, source_label: str):
+    """Broadcast new events, dedup against seen_keys."""
+    global _seen_keys
+    loop = asyncio.get_event_loop()
+    new_count = 0
+    skipped = 0
+    for event in events:
+        key = f"{round(event['lat'],2)},{round(event['lng'],2)}:{event['message'][:40]}"
+        if key in _seen_keys:
+            skipped += 1
+            continue
+        _seen_keys.add(key)
+        if len(_seen_keys) > 2000:
+            _seen_keys.clear()
+        event["time"] = datetime.utcnow().isoformat()
+        print(f"📡 [{event['type'].upper()}] {event.get('location','?')}: {event['message'][:70]}")
+        save_event(event)
+        await broadcast(event)
+        if event["type"] == "critical":
+            await loop.run_in_executor(None, send_discord_alert, event)
+        new_count += 1
+        await asyncio.sleep(0.1)
+    if new_count or skipped:
+        print(f"✅ {source_label} — {new_count} new, {skipped} dupes")
+    return new_count
+
+
+async def intel_loop():
+    """Main loop: Google News every 10 minutes."""
+    global _loop_running
     if _loop_running:
         print("⚠️ intel_loop already running — skipping duplicate")
         return
-
     _loop_running = True
     print("🚀 SENTINEL intelligence loop started")
-    seen_keys: set = set()
-
     try:
         while True:
-            print(f"🌐 Fetching events... ({len(clients)} client(s) connected)")
-
+            print(f"🌐 Fetching Google News... ({len(clients)} client(s) connected)")
             loop = asyncio.get_event_loop()
             try:
-                events = await loop.run_in_executor(None, get_news_events)
+                items = await loop.run_in_executor(None, fetch_google_news)
+                events = await loop.run_in_executor(None, items_to_events, items)
             except Exception as e:
-                print(f"⚠️ Fetch error: {e}")
+                print(f"⚠️ Google News fetch error: {e}")
                 events = []
-
-            new_count = 0
-            skipped = 0
-
-            for event in events:
-                key = f"{round(event['lat'],2)},{round(event['lng'],2)}:{event['message'][:40]}"
-                if key in seen_keys:
-                    skipped += 1
-                    continue
-                seen_keys.add(key)
-
-                if len(seen_keys) > 2000:
-                    seen_keys.clear()
-
-                event["time"] = datetime.utcnow().isoformat()
-
-                print(f"📡 [{event['type'].upper()}] {event.get('location','?')}: {event['message'][:70]}")
-
-                save_event(event)
-                await broadcast(event)
-
-                # Send Discord alert for critical events
-                if event["type"] == "critical":
-                    await loop.run_in_executor(None, send_discord_alert, event)
-
-                new_count += 1
-                await asyncio.sleep(0.2)
-
-            print(f"✅ Cycle done — {new_count} new events, {skipped} dupes. Waiting 10min...")
+            await _process_events(events, "Google News cycle")
+            cleanup_old_events(hours=24)
+            print("⏳ Google News waiting 10min...")
             await asyncio.sleep(600)
-
     except Exception as e:
         print(f"❌ intel_loop crashed: {e}")
         import traceback
@@ -249,6 +249,21 @@ async def intel_loop():
     finally:
         _loop_running = False
         print("⚠️ intel_loop exited")
+
+
+async def nitter_loop():
+    """Fast loop: X/Nitter every 2 minutes."""
+    print("🐦 SENTINEL Nitter loop started")
+    await asyncio.sleep(30)  # stagger start
+    while True:
+        try:
+            loop = asyncio.get_event_loop()
+            items = await loop.run_in_executor(None, fetch_nitter_rss)
+            events = await loop.run_in_executor(None, items_to_events, items)
+            await _process_events(events, "Nitter cycle")
+        except Exception as e:
+            print(f"⚠️ Nitter loop error: {e}")
+        await asyncio.sleep(120)  # every 2 minutes
 
 
 async def watchdog():
@@ -283,5 +298,6 @@ async def startup_event():
     asyncio.create_task(load_model_bg())
     cleanup_old_events(hours=24)  # Remove old/GDELT events on startup
     asyncio.create_task(intel_loop())
+    asyncio.create_task(nitter_loop())
     asyncio.create_task(watchdog())
     asyncio.create_task(run_hormuz_tracker())
