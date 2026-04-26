@@ -143,8 +143,22 @@
   .timeline-toggle.down{bottom:5px}
 
   /* ALERT TOAST */
-  .alert-toast { position:fixed; top:60px; left:50%; transform:translateX(-50%) translateY(-80px); background:rgba(255,62,62,.15); border:1px solid var(--crit); border-radius:4px; padding:10px 20px; font-family:monospace; font-size:12px; color:var(--crit); z-index:9999; transition:transform .4s ease; pointer-events:none; letter-spacing:1px; white-space:nowrap; }
+  .alert-toast { position:fixed; top:60px; left:50%; transform:translateX(-50%) translateY(-120px); background:rgba(255,40,40,.95); border:2px solid #ff2222; border-radius:4px; padding:12px 28px; font-family:monospace; font-size:13px; color:#fff; z-index:9999; transition:transform .3s ease; pointer-events:none; letter-spacing:2px; white-space:nowrap; box-shadow:0 0 30px rgba(255,40,40,0.6); font-weight:bold; }
   .alert-toast.show{transform:translateX(-50%) translateY(0)}
+
+  /* Ticker bar */
+  .ticker-bar { position:fixed; bottom:0; left:0; right:0; height:28px; background:rgba(0,0,0,0.92); border-top:1px solid var(--border); z-index:800; display:flex; align-items:center; overflow:hidden; }
+  .ticker-label { flex-shrink:0; background:var(--crit); color:#fff; font-family:monospace; font-size:10px; letter-spacing:2px; padding:0 12px; height:100%; display:flex; align-items:center; font-weight:bold; }
+  .ticker-content { flex:1; overflow:hidden; white-space:nowrap; }
+  .ticker-scroll { display:inline-block; animation:ticker 60s linear infinite; font-family:monospace; font-size:10px; color:#ccc; letter-spacing:1px; }
+  @keyframes ticker { from{transform:translateX(100vw)} to{transform:translateX(-100%)} }
+
+  /* Stream mode button */
+  .stream-btn { background:transparent; border:1px solid #ff4400; color:#ff4400; font-family:monospace; font-size:9px; letter-spacing:1px; padding:4px 8px; cursor:pointer; border-radius:2px; }
+  .stream-btn:hover { background:#ff4400; color:#000; }
+  .stream-mode .side-panel, .stream-mode .detail-panel { display:none !important; }
+  .stream-mode .ticker-bar { display:flex; }
+  .stream-mode #map { right:0 !important; }
 
   /* LEAFLET OVERRIDES */
   .leaflet-popup-content-wrapper{background:#070d18;border:1px solid #0d2238;border-radius:4px;color:#c8dff0;font-family:'IBM Plex Sans',sans-serif}
@@ -529,13 +543,22 @@
     <button onclick="showIntelBrief()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Daily Intel Brief">📋 BRIEF</button>
     <button onclick="toggleFeeds()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Intel Feeds">📡 FEEDS</button>
     <button id="sound-toggle" onclick="toggleSound()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle sound alerts">🔇 SOUND</button>
+    <button onclick="toggleStreamMode()" style="background:transparent;border:1px solid #ff4400;border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:#ff4400;cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle stream mode">📺 STREAM</button>
     <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">CONNECTING</span></div>
     <div id="clock">--:--:--</div>
   </div>
 </header>
 
 <!-- Alert toast -->
-<div class="alert-toast" id="alert-toast">⚠ CRITICAL EVENT DETECTED</div>
+<div class="alert-toast" id="alert-toast">🔴 BREAKING — CRITICAL EVENT DETECTED</div>
+
+<!-- Ticker bar -->
+<div class="ticker-bar" id="ticker-bar">
+  <div class="ticker-label">⚡ LIVE INTEL</div>
+  <div class="ticker-content">
+    <span class="ticker-scroll" id="ticker-scroll">Initializing SENTINEL feed...</span>
+  </div>
+</div>
 
 <!-- INTEL BRIEF MODAL -->
 <div id="brief-modal" style="display:none;position:fixed;top:50px;left:50%;transform:translateX(-50%);width:600px;max-width:95vw;max-height:80vh;background:var(--panel);border:1px solid var(--accent);border-radius:6px;z-index:3000;overflow:hidden;font-family:monospace;box-shadow:0 4px 30px rgba(0,200,255,0.2);">
@@ -1184,7 +1207,7 @@ function processEvent(data){
   const marker=makeMarker(data);
   allMarkers.push({marker,event:data});allEvents.push(data);
   if(currentView==='heatmap'){heatPoints.push([data.lat,data.lng,HEAT_I[data.type]||.3]);heatLayer.setLatLngs(heatPoints);}
-  addEventCard(data,marker);updateStats(data);
+  addEventCard(data,marker);updateStats(data);addToTicker(data);
 }
 
 // ── FEATURE 5: COUNTRY SEARCH ─────────────────────────────────────────────────
@@ -1356,6 +1379,26 @@ document.getElementById('tl-speed').addEventListener('click',()=>{tlSpeedIdx=(tl
 // ── SOUND ALERTS ─────────────────────────────────────────────────────────────
 let soundEnabled = false;
 let audioCtx = null;
+
+// ── STREAM MODE ───────────────────────────────────────────────────────────────
+let streamMode = false;
+function toggleStreamMode() {
+  streamMode = !streamMode;
+  document.body.classList.toggle('stream-mode', streamMode);
+  setTimeout(() => map.invalidateSize(), 300);
+}
+
+// ── TICKER BAR ────────────────────────────────────────────────────────────────
+const tickerItems = [];
+function addToTicker(event) {
+  tickerItems.push(event);
+  if (tickerItems.length > 50) tickerItems.shift();
+  const text = tickerItems.slice(-30).map(e =>
+    `${e.type==='critical'?'🔴':e.type==='warning'?'🟡':'🔵'} [${(e.location||'?').toUpperCase()}] ${e.message}   ●   `
+  ).join('');
+  const el = document.getElementById('ticker-scroll');
+  if (el) el.textContent = text;
+}
 
 function toggleSound() {
   soundEnabled = !soundEnabled;

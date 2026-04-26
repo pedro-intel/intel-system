@@ -11,14 +11,6 @@ from datetime import datetime, timedelta
 HEADERS = {"User-Agent": "intel-system/1.0"}
 
 # ── GOOGLE NEWS RSS FEEDS ─────────────────────────────────────────────────────
-GOOGLE_NEWS_FEEDS = [
-    "https://news.google.com/rss/search?q=war+attack+conflict+military&hl=en&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=airstrike+missile+bombing+explosion&hl=en&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=killed+civilians+troops+battle&hl=en&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=coup+protest+riot+sanction&hl=en&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=earthquake+flood+disaster+hurricane&hl=en&gl=US&ceid=US:en",
-]
-
 # ── NITTER INSTANCES ──────────────────────────────────────────────────────────
 NITTER_INSTANCES = [
     "https://nitter.poast.org",
@@ -628,9 +620,8 @@ def items_to_events(items: list) -> list:
 
 # ── MAIN ENTRY POINT ──────────────────────────────────────────────────────────
 def get_news_events() -> list:
-    print("📡 Fetching Google News + X RSS...")
-    items  = fetch_google_news()
-    items += fetch_nitter_rss()
+    print("📡 Fetching X/Nitter RSS...")
+    items  = fetch_nitter_rss()
     events = items_to_events(items)
     print(f"✅ {len(events)} geo-tagged events ready")
     return events[:150]
