@@ -1436,7 +1436,7 @@ function streamTourStep() {
   streamIndex++;
 
   // Fly to event
-  const zoom = event.type === 'critical' ? 6 : 5;
+  const zoom = event.type === 'critical' ? 5 : 4;
   map.flyTo([event.lat, event.lng], zoom, { duration: 2.5, easeLinearity: 0.3 });
 
   // Open detail panel after fly animation
@@ -1452,7 +1452,7 @@ function streamCriticalInterrupt(event) {
   // Immediately jump to critical event
   stopStreamTour();
   streamIndex = 0;
-  map.flyTo([event.lat, event.lng], 7, { duration: 1.5, easeLinearity: 0.5 });
+  map.flyTo([event.lat, event.lng], 5, { duration: 1.5, easeLinearity: 0.5 });
   setTimeout(() => {
     if (!streamMode) return;
     openDetail(event);
