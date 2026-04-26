@@ -11,7 +11,7 @@ from datetime import datetime
 
 from ml_model import classify_event, load_model
 from hormuz_tracker import run_hormuz_tracker, get_stats as get_hormuz_stats
-from db import save_event, get_conn, cleanup_old_events
+from db import save_event, get_conn, cleanup_old_events, get_seen_keys, add_seen_key, cleanup_seen_keys
 from news_ingest import get_news_events, fetch_nitter_rss, fetch_google_news, items_to_events
 
 app = FastAPI()
@@ -190,19 +190,19 @@ async def broadcast(event: dict):
 
 
 # ── MAIN INTEL LOOP ───────────────────────────────────────────────────────────
-# Shared seen_keys across both loops — persists for 1 hour
+# DB-backed seen_keys — persists across restarts
 _seen_keys: set = set()
-_seen_keys_reset: float = 0.0
+_seen_keys_loaded: bool = False
 
 async def _process_events(events: list, source_label: str):
-    """Broadcast new events, dedup against seen_keys."""
-    global _seen_keys, _seen_keys_reset
-    import time
-    # Reset seen_keys every hour
-    now = time.time()
-    if now - _seen_keys_reset > 3600:
-        _seen_keys.clear()
-        _seen_keys_reset = now
+    """Broadcast new events, dedup against DB-backed seen_keys."""
+    global _seen_keys, _seen_keys_loaded
+    # Load seen keys from DB on first run
+    if not _seen_keys_loaded:
+        loop = asyncio.get_event_loop()
+        _seen_keys = await loop.run_in_executor(None, get_seen_keys)
+        _seen_keys_loaded = True
+        print(f"📋 Loaded {len(_seen_keys)} seen keys from DB")
     loop = asyncio.get_event_loop()
     new_count = 0
     skipped = 0
@@ -212,6 +212,7 @@ async def _process_events(events: list, source_label: str):
             skipped += 1
             continue
         _seen_keys.add(key)
+        await loop.run_in_executor(None, add_seen_key, key)
         event["time"] = datetime.utcnow().isoformat()
         print(f"📡 [{event['type'].upper()}] {event.get('location','?')}: {event['message'][:70]}")
         save_event(event)

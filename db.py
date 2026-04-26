@@ -237,3 +237,59 @@ def cleanup_old_events(hours: int = 24):
     except Exception as e:
         print(f"⚠️ DB cleanup error: {e}")
         return 0
+
+
+def get_seen_keys() -> set:
+    """Load seen event keys from DB."""
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS seen_keys (
+                    key TEXT PRIMARY KEY,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            conn.commit()
+            cur.execute("SELECT key FROM seen_keys WHERE created_at > NOW() - INTERVAL '24 hours'")
+        else:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS seen_keys (
+                    key TEXT PRIMARY KEY,
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
+            """)
+            conn.commit()
+            cur.execute("SELECT key FROM seen_keys WHERE created_at > datetime('now', '-24 hours')")
+        rows = cur.fetchall()
+        return set(r[0] for r in rows)
+    except Exception as e:
+        print(f"⚠️ get_seen_keys error: {e}")
+        return set()
+
+def add_seen_key(key: str):
+    """Save a seen key to DB."""
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("INSERT INTO seen_keys (key) VALUES (%s) ON CONFLICT DO NOTHING", (key,))
+        else:
+            cur.execute("INSERT OR IGNORE INTO seen_keys (key) VALUES (?)", (key,))
+        conn.commit()
+    except Exception:
+        pass
+
+def cleanup_seen_keys():
+    """Remove seen keys older than 24 hours."""
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("DELETE FROM seen_keys WHERE created_at < NOW() - INTERVAL '24 hours'")
+        else:
+            cur.execute("DELETE FROM seen_keys WHERE created_at < datetime('now', '-24 hours')")
+        conn.commit()
+    except Exception:
+        pass

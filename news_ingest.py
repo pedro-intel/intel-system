@@ -532,7 +532,6 @@ def get_working_nitter() -> str | None:
 def fetch_google_news() -> list:
     items = []
     seen = set()
-    cutoff = datetime.utcnow() - timedelta(hours=12)
 
     for url in GOOGLE_NEWS_FEEDS:
         try:
@@ -541,17 +540,6 @@ def fetch_google_news() -> list:
                 title = entry.get("title","").strip()
                 title = re.sub(r'\s+-\s+[\w\s]+$', '', title).strip()
                 if not title or not is_relevant(title): continue
-
-                # Time filter — skip articles older than 12 hours if date available
-                published = entry.get("published_parsed") or entry.get("updated_parsed")
-                if published:
-                    try:
-                        pub_dt = datetime(*published[:6])
-                        if pub_dt < cutoff:
-                            continue
-                    except Exception:
-                        pass  # If date parsing fails, include the article
-
                 key = dedup_key(title)
                 if key in seen: continue
                 seen.add(key)

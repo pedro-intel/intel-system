@@ -4,12 +4,12 @@ import websockets
 from datetime import datetime, timezone
 from collections import defaultdict
 
-# Strait of Hormuz bounding box
+# Strait of Hormuz bounding box — widened to catch more vessels
 HORMUZ_BOX = {
-    "minLat": 25.5,
-    "maxLat": 27.0,
-    "minLon": 55.5,
-    "maxLon": 59.0
+    "minLat": 24.0,
+    "maxLat": 28.0,
+    "minLon": 54.0,
+    "maxLon": 60.0
 }
 
 # Track vessels
