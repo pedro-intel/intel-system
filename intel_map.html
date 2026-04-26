@@ -26,6 +26,13 @@
   .logo span { color:#4a7a9b; font-weight:400; font-size:11px; letter-spacing:2px; margin-left:10px; }
   .header-right { display:flex; align-items:center; gap:24px; font-family:monospace; font-size:11px; }
   .live-badge { display:flex; align-items:center; gap:6px; color:var(--accent2); }
+  /* Military header buttons */
+  .hdr-btn { background:transparent; border:1px solid rgba(13,200,255,0.2); border-radius:2px; padding:5px 10px; font-family:'Share Tech Mono',monospace; font-size:9px; color:rgba(13,200,255,0.5); cursor:pointer; letter-spacing:2px; transition:all .2s; position:relative; clip-path:polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%); }
+  .hdr-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(13,200,255,0.05); }
+  .hdr-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(13,200,255,0.08); }
+  .hdr-btn.danger { border-color:rgba(255,68,0,0.4); color:rgba(255,68,0,0.7); }
+  .hdr-btn.danger:hover, .hdr-btn.danger.active { border-color:#ff4400; color:#ff4400; background:rgba(255,68,0,0.08); }
+  .hdr-btn.music-on { border-color:#ff4400; color:#ff4400; background:rgba(255,68,0,0.08); }
   .live-dot { width:7px; height:7px; border-radius:50%; background:var(--accent2); animation:pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
   .live-dot.red{background:var(--crit);animation:none} .live-dot.yellow{background:var(--warn);animation:none}
@@ -544,20 +551,18 @@
         <div style="padding:10px 14px;color:var(--dim);font-size:10px;">Waiting for AIS data...</div>
       </div>
     </div>
-    <button onclick="showIntelBrief()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Daily Intel Brief">📋 BRIEF</button>
-    <button onclick="toggleFeeds()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Intel Feeds">📡 FEEDS</button>
-    <button id="sound-toggle" onclick="toggleSound()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle sound alerts">🔇 SOUND</button>
-    <button id="music-toggle" onclick="toggleMusic()" style="background:transparent;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:var(--dim);cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle ambient music">🎵 MUSIC</button>
-    <button onclick="toggleStreamMode()" style="background:transparent;border:1px solid #ff4400;border-radius:3px;padding:4px 8px;font-family:monospace;font-size:10px;color:#ff4400;cursor:pointer;letter-spacing:1px;transition:all .2s;" title="Toggle stream mode">📺 STREAM</button>
+    <button onclick="showIntelBrief()" class="hdr-btn" title="Daily Intel Brief">▣ BRIEF</button>
+    <button onclick="toggleFeeds()" class="hdr-btn active" title="Intel Feeds">◈ FEEDS</button>
+    <button id="sound-toggle" onclick="toggleSound()" class="hdr-btn" title="Toggle sound alerts">◎ SOUND OFF</button>
+    <button id="music-toggle" onclick="toggleMusic()" class="hdr-btn" title="Toggle ambient music">♪ MUSIC</button>
+    <button onclick="toggleStreamMode()" class="hdr-btn danger" title="Toggle stream mode">▶ STREAM</button>
     <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">CONNECTING</span></div>
     <div id="clock">--:--:--</div>
   </div>
 </header>
 
-<!-- Ambient music player -->
-<audio id="ambient-music" loop preload="none">
-  <source src="https://cdn.pixabay.com/audio/2024/01/10/audio_0625a95f1d.mp3" type="audio/mpeg">
-</audio>
+<!-- Ambient music player - CC licensed synthwave tracks from Free Music Archive -->
+<audio id="ambient-music" loop preload="none" crossorigin="anonymous"></audio>
 
 <!-- Alert toast -->
 <div class="alert-toast" id="alert-toast">🔴 BREAKING — CRITICAL EVENT DETECTED</div>
@@ -1610,12 +1615,14 @@ function streamCriticalInterrupt(event) {
 
 // ── AMBIENT MUSIC ─────────────────────────────────────────────────────────────
 let musicPlaying = false;
-const MUSIC_TRACKS = [
-  'https://cdn.pixabay.com/audio/2024/01/10/audio_0625a95f1d.mp3',
-  'https://cdn.pixabay.com/audio/2023/10/30/audio_6a5c6e4f0d.mp3',
-  'https://cdn.pixabay.com/audio/2022/10/30/audio_0db1e36b2e.mp3',
-];
 let musicTrackIdx = 0;
+
+// CC-licensed dark synthwave/ambient tracks from Free Music Archive
+const MUSIC_TRACKS = [
+  'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/WFMU/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3',
+  'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Kai_Engel/Satin/Kai_Engel_-_09_-_Sentinel.mp3',
+  'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/WFMU/Broke_For_Free/Slam_Funk_EP/Broke_For_Free_-_01_-_Something_Elated.mp3',
+];
 
 function toggleMusic() {
   const audio = document.getElementById('ambient-music');
@@ -1625,21 +1632,28 @@ function toggleMusic() {
   if (musicPlaying) {
     audio.pause();
     musicPlaying = false;
-    btn.textContent = '🎵 MUSIC';
-    btn.style.color = 'var(--dim)';
-    btn.style.borderColor = 'var(--border)';
+    btn.innerHTML = '♪ MUSIC';
+    btn.classList.remove('music-on');
   } else {
-    audio.volume = 0.15; // Low ambient volume
+    audio.volume = 0.12;
     audio.src = MUSIC_TRACKS[musicTrackIdx % MUSIC_TRACKS.length];
     audio.play().then(() => {
       musicPlaying = true;
-      btn.textContent = '🎵 PLAYING';
-      btn.style.color = '#ff4400';
-      btn.style.borderColor = '#ff4400';
-    }).catch(() => {
-      btn.textContent = '🎵 MUSIC';
+      btn.innerHTML = '♪ PLAYING';
+      btn.classList.add('music-on');
+    }).catch(e => {
+      // Try next track on error
+      musicTrackIdx++;
+      audio.src = MUSIC_TRACKS[musicTrackIdx % MUSIC_TRACKS.length];
+      audio.play().then(() => {
+        musicPlaying = true;
+        btn.innerHTML = '♪ PLAYING';
+        btn.style.color = '#ff4400';
+        btn.style.borderColor = '#ff4400';
+      }).catch(() => {
+        btn.innerHTML = '♪ MUSIC';
+      });
     });
-    // Next track when current ends
     audio.onended = () => {
       musicTrackIdx++;
       audio.src = MUSIC_TRACKS[musicTrackIdx % MUSIC_TRACKS.length];
@@ -1672,9 +1686,8 @@ function addToTicker(event) {
 function toggleSound() {
   soundEnabled = !soundEnabled;
   const btn = document.getElementById('sound-toggle');
-  btn.textContent = soundEnabled ? '🔊 SOUND' : '🔇 SOUND';
-  btn.style.color = soundEnabled ? 'var(--accent2)' : 'var(--dim)';
-  btn.style.borderColor = soundEnabled ? 'var(--accent2)' : 'var(--border)';
+  btn.textContent = soundEnabled ? '◎ SOUND ON' : '◎ SOUND OFF';
+  btn.classList.toggle('active', soundEnabled);
 
   // Initialize AudioContext on first user interaction (browser requirement)
   if (soundEnabled && !audioCtx) {
