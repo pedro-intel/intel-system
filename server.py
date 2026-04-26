@@ -12,7 +12,7 @@ from datetime import datetime
 from ml_model import classify_event, load_model
 from hormuz_tracker import run_hormuz_tracker, get_stats as get_hormuz_stats
 from db import save_event, get_conn, cleanup_old_events, get_seen_keys, add_seen_key, cleanup_seen_keys
-from news_ingest import get_news_events, fetch_nitter_rss, fetch_google_news, items_to_events
+from news_ingest import fetch_nitter_rss, items_to_events
 
 app = FastAPI()
 
@@ -227,31 +227,19 @@ async def _process_events(events: list, source_label: str):
 
 
 async def intel_loop():
-    """Main loop: Google News every 10 minutes."""
+    """Cleanup loop — runs every 10 minutes."""
     global _loop_running
     if _loop_running:
-        print("⚠️ intel_loop already running — skipping duplicate")
         return
     _loop_running = True
-    print("🚀 SENTINEL intelligence loop started")
+    print("🚀 SENTINEL running — X/Nitter only mode")
     try:
         while True:
-            print(f"🌐 Fetching Google News... ({len(clients)} client(s) connected)")
-            loop = asyncio.get_event_loop()
-            try:
-                items = await loop.run_in_executor(None, fetch_google_news)
-                events = await loop.run_in_executor(None, items_to_events, items)
-            except Exception as e:
-                print(f"⚠️ Google News fetch error: {e}")
-                events = []
-            await _process_events(events, "Google News cycle")
             cleanup_old_events(hours=24)
-            print("⏳ Google News waiting 10min...")
+            cleanup_seen_keys()
             await asyncio.sleep(600)
     except Exception as e:
         print(f"❌ intel_loop crashed: {e}")
-        import traceback
-        traceback.print_exc()
     finally:
         _loop_running = False
         print("⚠️ intel_loop exited")
