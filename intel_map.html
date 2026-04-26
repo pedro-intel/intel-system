@@ -1399,54 +1399,60 @@ let audioCtx = null;
 
 // ── STREAM MODE ───────────────────────────────────────────────────────────────
 let streamMode = false;
-let streamInterval = null;
-let streamRegionIndex = 0;
-let streamEventIndex = 0;
-let streamCurrentRegion = null;
+let streamTimer = null;
+let streamStep = 0; // flat index into all stream steps
+let streamSteps = []; // flat list of {type:'event'|'feed', ...}
+let streamRegionsSinceFeed2 = 0;
 
-// Define world regions with center coords and zoom
+const STREAM_FEEDS2 = ['markets', 'ships', 'flights'];
+let streamFeedIdx2 = 0;
+
+function buildStreamSteps() {
+  // Build a flat ordered list: events grouped by region, feed every 2 regions
+  const regions = getActiveRegions();
+  const steps = [];
+  regions.forEach((region, ri) => {
+    region.events.forEach(evt => {
+      steps.push({ type: 'event', event: evt, region });
+    });
+    if ((ri + 1) % 2 === 0) {
+      const feed = STREAM_FEEDS2[Math.floor(ri / 2) % STREAM_FEEDS2.length];
+      steps.push({ type: 'feed', feed });
+    }
+  });
+  return steps;
+}
+
 function getActiveRegions() {
-  // Dynamically cluster events by proximity — only visit regions with news
   const events = allEvents.filter(e => e.lat && e.lng);
   if (events.length === 0) return [];
-
   const clusters = [];
   const used = new Set();
-
-  // Sort criticals first so they anchor clusters
   const sorted = [...events].sort((a,b) => {
     const s = {critical:3,warning:2,info:1};
     return (s[b.type]||0) - (s[a.type]||0);
   });
-
   for (let i = 0; i < sorted.length; i++) {
     if (used.has(i)) continue;
     const anchor = sorted[i];
     const cluster = [anchor];
     used.add(i);
-
     for (let j = i+1; j < sorted.length; j++) {
       if (used.has(j)) continue;
       const e = sorted[j];
       if (Math.abs(e.lat - anchor.lat) < 18 && Math.abs(e.lng - anchor.lng) < 22) {
-        cluster.push(e);
-        used.add(j);
+        cluster.push(e); used.add(j);
       }
     }
-
     const avgLat = cluster.reduce((s,e) => s+e.lat, 0) / cluster.length;
     const avgLng = cluster.reduce((s,e) => s+e.lng, 0) / cluster.length;
-    const hasCritical = cluster.some(e => e.type === 'critical');
-
     clusters.push({
       lat: avgLat, lng: avgLng,
-      zoom: hasCritical ? 5 : 4,
+      zoom: cluster.some(e=>e.type==='critical') ? 5 : 4,
       events: cluster.slice(0, 4),
       name: cluster[0].location || 'REGION',
     });
   }
-
-  // Sort: most active/critical regions first
   return clusters.sort((a,b) => {
     const aScore = a.events.filter(e=>e.type==='critical').length*3 + a.events.length;
     const bScore = b.events.filter(e=>e.type==='critical').length*3 + b.events.length;
@@ -1459,120 +1465,75 @@ function toggleStreamMode() {
   document.body.classList.toggle('stream-mode', streamMode);
   setTimeout(() => map.invalidateSize(), 300);
   if (streamMode) {
-    startStreamTour();
+    streamStep = 0;
+    streamSteps = buildStreamSteps();
+    runStreamStep();
   } else {
-    stopStreamTour();
+    if (streamTimer) clearTimeout(streamTimer);
+    streamTimer = null;
     closeDetailPanel();
+    map.closePopup();
+    const panel = document.getElementById('feeds-panel');
+    if (panel) panel.style.display = 'none';
     map.setView([20, 20], 2);
   }
 }
 
-function startStreamTour() {
-  streamRegionIndex = 0;
-  streamEventIndex = 0;
-  streamTourNextRegion();
-}
-
-function stopStreamTour() {
-  if (streamInterval) clearTimeout(streamInterval);
-  streamInterval = null;
-}
-
-function streamTourNextRegion() {
+function runStreamStep() {
   if (!streamMode) return;
 
-  const regions = getActiveRegions();
-  if (regions.length === 0) {
-    streamInterval = setTimeout(streamTourNextRegion, 8000);
-    return;
+  // Rebuild steps every full cycle to pick up new events
+  if (streamStep === 0 || streamStep >= streamSteps.length) {
+    streamSteps = buildStreamSteps();
+    streamStep = 0;
+    if (streamSteps.length === 0) {
+      streamTimer = setTimeout(runStreamStep, 5000);
+      return;
+    }
   }
 
-  const region = regions[streamRegionIndex % regions.length];
-  streamRegionIndex++;
+  const step = streamSteps[streamStep];
+  streamStep++;
 
-  streamCurrentRegion = region;
-  streamEventIndex = 0;
-
-  // Fly to cluster center
-  map.flyTo([region.lat, region.lng], region.zoom, { duration: 2.5, easeLinearity: 0.3 });
-  showRegionLabel(region.name.toUpperCase());
-
-  // Store in streamInterval so stopStreamTour can cancel it
-  streamInterval = setTimeout(() => streamTourShowNextEvent(), 3000);
+  if (step.type === 'event') {
+    runStreamEvent(step.event, step.region);
+  } else {
+    runStreamFeed(step.feed);
+  }
 }
 
-let streamRegionsSinceFeed = 0;
-const STREAM_FEEDS = ['markets', 'ships', 'flights'];
-let streamFeedIndex = 0;
-
-function streamTourShowNextEvent() {
-  if (!streamMode || !streamCurrentRegion) return;
-
-  const { events } = streamCurrentRegion;
-  const maxEvents = Math.min(events.length, 4);
-
-  if (streamEventIndex >= maxEvents) {
-    // Done with this region
-    closeDetailPanel();
-    map.closePopup(); // close any open popups
-    streamRegionsSinceFeed++;
-
-    // Show a feed every 2 regions
-    if (streamRegionsSinceFeed >= 2) {
-      streamRegionsSinceFeed = 0;
-      streamInterval = setTimeout(streamShowFeed, 1500);
-    } else {
-      streamInterval = setTimeout(streamTourNextRegion, 1500);
-    }
-    return;
-  }
-
-  const event = events[streamEventIndex];
-  streamEventIndex++;
-
-  // Close any open popups first
+function runStreamEvent(event, region) {
   map.closePopup();
   closeDetailPanel();
 
-  // Fly to specific event
-  map.flyTo([event.lat, event.lng], streamCurrentRegion.zoom + 1, { duration: 1.8, easeLinearity: 0.4 });
+  // Fly to event
+  map.setView([event.lat, event.lng], region.zoom + 1, { animate: true, duration: 1.5 });
+  showRegionLabel((event.location || region.name).toUpperCase());
 
-  // Open detail panel after fly — store timeout so it can be cancelled
-  streamInterval = setTimeout(() => {
+  // Show detail after 2s, then advance after 15s
+  streamTimer = setTimeout(() => {
     if (!streamMode) return;
     map.closePopup();
     openDetail(event);
-    streamInterval = setTimeout(streamTourShowNextEvent, 15000);
-  }, 2200);
+    streamTimer = setTimeout(runStreamStep, 15000);
+  }, 2000);
 }
 
-function streamShowFeed() {
-  if (!streamMode) return;
-
-  const feed = STREAM_FEEDS[streamFeedIndex % STREAM_FEEDS.length];
-  streamFeedIndex++;
-
-  // Close detail panel, open feeds panel on this tab
+function runStreamFeed(feed) {
   closeDetailPanel();
-
-  // Show which feed is coming up
+  map.closePopup();
   const labels = { markets: '📈 MARKETS', ships: '🚢 HORMUZ SHIPPING', flights: '✈️ MIL FLIGHTS' };
   showRegionLabel(labels[feed]);
 
-  streamInterval = setTimeout(() => {
+  streamTimer = setTimeout(() => {
     if (!streamMode) return;
-    // Open feeds panel to the right tab
     const panel = document.getElementById('feeds-panel');
-    if (panel) {
-      panel.style.display = 'flex';
-      feedsTab(feed);
-    }
-    // Show feed for 15 seconds then continue tour
-    streamInterval = setTimeout(() => {
+    if (panel) { panel.style.display = 'flex'; feedsTab(feed); }
+    streamTimer = setTimeout(() => {
       if (!streamMode) return;
       const panel = document.getElementById('feeds-panel');
       if (panel) panel.style.display = 'none';
-      streamTourNextRegion();
+      runStreamStep();
     }, 15000);
   }, 1500);
 }
@@ -1580,9 +1541,7 @@ function streamShowFeed() {
 function showRegionLabel(name) {
   const toast = document.getElementById('alert-toast');
   if (!toast) return;
-  const prev = toast.textContent;
-  const prevClass = toast.className;
-  toast.textContent = `📍 REGION: ${name}`;
+  toast.textContent = `📍 ${name}`;
   toast.style.background = 'rgba(0,100,200,0.9)';
   toast.style.border = '2px solid #0088ff';
   toast.classList.add('show');
@@ -1600,17 +1559,16 @@ function streamCriticalInterrupt(event) {
   const key = `${event.lat},${event.lng}:${event.message?.slice(0,30)}`;
   if (streamCriticalSeen.has(key)) return;
   streamCriticalSeen.add(key);
-  // Cancel current tour step
-  if (streamInterval) clearTimeout(streamInterval);
-  map.flyTo([event.lat, event.lng], 6, { duration: 1.2, easeLinearity: 0.5 });
-  streamInterval = setTimeout(() => {
+  if (streamTimer) clearTimeout(streamTimer);
+  map.setView([event.lat, event.lng], 6, { animate: true, duration: 1.0 });
+  streamTimer = setTimeout(() => {
     if (!streamMode) return;
     openDetail(event);
-    streamInterval = setTimeout(() => {
+    streamTimer = setTimeout(() => {
       closeDetailPanel();
-      streamInterval = setTimeout(streamTourNextRegion, 1000);
+      runStreamStep();
     }, 15000);
-  }, 1500);
+  }, 1200);
 }
 
 // ── TICKER BAR ────────────────────────────────────────────────────────────────
