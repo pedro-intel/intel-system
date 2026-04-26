@@ -255,18 +255,8 @@ async def watchdog():
     while True:
         if not _loop_running:
             print("🔄 Watchdog: restarting intel loop...")
-            # Clean up old GDELT events from DB
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM events WHERE source = 'GDELT' OR source = 'gdelt'")
-        deleted = cur.rowcount
-        conn.commit()
-        if deleted > 0:
-            print(f"🧹 Cleaned {deleted} old GDELT events from DB")
-    except Exception as e:
-        print(f"⚠️ DB cleanup error: {e}")
-    asyncio.create_task(intel_loop())
+            asyncio.create_task(intel_loop())
+        await asyncio.sleep(60)
 
 
 @app.get("/api/hormuz")
