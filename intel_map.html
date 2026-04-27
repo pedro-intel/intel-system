@@ -20,19 +20,36 @@
   body { background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 
   /* HEADER */
-  header { display:flex; align-items:center; justify-content:space-between; padding:0 20px; height:50px; background:var(--panel); border-bottom:1px solid var(--border); flex-shrink:0; z-index:1000; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:0 16px; height:50px; background:var(--panel); border-bottom:1px solid var(--border); flex-shrink:0; z-index:1000; }
   .logo { font-family:'Orbitron',monospace; font-weight:900; font-size:17px; letter-spacing:4px; color:var(--accent); }
   .logo .logo-zero { color:#ff4400; font-weight:900; font-size:17px; letter-spacing:4px; margin-left:0; }
   .logo span { color:#4a7a9b; font-weight:400; font-size:11px; letter-spacing:2px; margin-left:10px; }
-  .header-right { display:flex; align-items:center; gap:24px; font-family:monospace; font-size:11px; }
+  .header-right { display:flex; align-items:center; gap:14px; font-family:monospace; font-size:11px; }
+  .hdr-divider { width:1px; height:20px; background:rgba(13,200,255,0.15); }
   .live-badge { display:flex; align-items:center; gap:6px; color:var(--accent2); }
-  /* Military header buttons */
-  .hdr-btn { background:transparent; border:1px solid rgba(13,200,255,0.2); border-radius:2px; padding:5px 10px; font-family:'Share Tech Mono',monospace; font-size:9px; color:rgba(13,200,255,0.5); cursor:pointer; letter-spacing:2px; transition:all .2s; position:relative; clip-path:polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%); }
+
+  /* Header action buttons - larger ones */
+  .hdr-btn { background:transparent; border:1px solid rgba(13,200,255,0.2); border-radius:2px; padding:5px 10px; font-family:'Share Tech Mono',monospace; font-size:9px; color:rgba(13,200,255,0.5); cursor:pointer; letter-spacing:2px; transition:all .2s; clip-path:polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%); }
   .hdr-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(13,200,255,0.05); }
   .hdr-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(13,200,255,0.08); }
   .hdr-btn.danger { border-color:rgba(255,68,0,0.4); color:rgba(255,68,0,0.7); }
   .hdr-btn.danger:hover, .hdr-btn.danger.active { border-color:#ff4400; color:#ff4400; background:rgba(255,68,0,0.08); }
-  .hdr-btn.music-on { border-color:#ff4400; color:#ff4400; background:rgba(255,68,0,0.08); }
+
+  /* Small icon-only buttons for sound/music */
+  .hdr-icon-btn { background:transparent; border:1px solid rgba(13,200,255,0.15); border-radius:2px; padding:4px 7px; font-family:'Share Tech Mono',monospace; font-size:10px; color:rgba(13,200,255,0.35); cursor:pointer; transition:all .2s; line-height:1; }
+  .hdr-icon-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .hdr-icon-btn.active { border-color:var(--accent2); color:var(--accent2); }
+  .hdr-icon-btn.music-on { border-color:#ff4400; color:#ff4400; }
+
+  /* CONTROL PANEL - slides down from header */
+  .ctrl-panel { position:fixed; top:50px; right:0; width:320px; background:var(--panel); border-left:1px solid var(--border); border-bottom:1px solid var(--border); z-index:1500; transform:translateX(100%); transition:transform .3s ease; }
+  .ctrl-panel.open { transform:translateX(0); }
+  .ctrl-panel-tabs { display:flex; border-bottom:1px solid var(--border); }
+  .ctrl-tab { flex:1; padding:10px; font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; color:var(--dim); cursor:pointer; text-align:center; border:none; background:transparent; transition:all .2s; }
+  .ctrl-tab:hover { color:var(--accent); }
+  .ctrl-tab.active { color:var(--accent); border-bottom:2px solid var(--accent); }
+  .ctrl-content { display:none; padding:12px; }
+  .ctrl-content.active { display:block; }
   .live-dot { width:7px; height:7px; border-radius:50%; background:var(--accent2); animation:pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
   .live-dot.red{background:var(--crit);animation:none} .live-dot.yellow{background:var(--warn);animation:none}
@@ -532,37 +549,57 @@
       <div id="search-results"></div>
     </div>
     <div class="stat"><div class="val" id="stat-total">0</div><div class="lbl">EVENTS</div></div>
-    <div class="stat"><div class="val" id="stat-crit" style="color:var(--crit)">0</div><div class="lbl">CRITICAL</div></div>
-    <div class="stat"><div class="val" id="stat-warn" style="color:var(--warn)">0</div><div class="lbl">WARNING</div></div>
-    <div id="hormuz-counter" onclick="toggleHormuzPanel()" title="Click for vessel details" style="display:flex;align-items:center;gap:4px;font-family:monospace;font-size:10px;border:1px solid #1a3a4a;border-radius:3px;padding:3px 8px;cursor:pointer;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='#1a3a4a'">
-      🚢 <span id="hormuz-count" style="color:var(--accent);font-weight:bold;">--</span>
-    </div>
+    <div class="stat"><div class="val" id="stat-crit" style="color:var(--crit)">0</div><div class="lbl">CRIT</div></div>
+    <div class="stat"><div class="val" id="stat-warn" style="color:var(--warn)">0</div><div class="lbl">WARN</div></div>
 
-    <!-- Hormuz Detail Panel -->
-    <div id="hormuz-panel" style="display:none;position:fixed;top:50px;left:50%;transform:translateX(-50%);width:360px;max-height:500px;background:var(--panel);border:1px solid var(--accent);border-radius:6px;z-index:2000;overflow:hidden;font-family:monospace;box-shadow:0 4px 20px rgba(0,200,255,0.15);">
-      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:var(--accent);font-size:11px;letter-spacing:2px;">🚢 HORMUZ STRAIT</span>
-        <button onclick="toggleHormuzPanel()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:14px;">✕</button>
-      </div>
-      <div id="hormuz-summary" style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;color:var(--dim);">
-        Loading vessel data...
-      </div>
-      <div id="hormuz-vessel-list" style="overflow-y:auto;max-height:340px;padding:8px 0;">
-        <div style="padding:10px 14px;color:var(--dim);font-size:10px;">Waiting for AIS data...</div>
-      </div>
-    </div>
-    <button onclick="showIntelBrief()" class="hdr-btn" title="Daily Intel Brief">▣ BRIEF</button>
-    <button onclick="toggleFeeds()" class="hdr-btn active" title="Intel Feeds">◈ FEEDS</button>
-    <button id="sound-toggle" onclick="toggleSound()" class="hdr-btn" title="Toggle sound alerts">◎ SOUND OFF</button>
-    <button id="music-toggle" onclick="toggleMusic()" class="hdr-btn" title="Toggle ambient music">♪ MUSIC</button>
-    <button onclick="toggleStreamMode()" class="hdr-btn danger" title="Toggle stream mode">▶ STREAM</button>
-    <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">CONNECTING</span></div>
+    <div class="hdr-divider"></div>
+
+    <button id="hormuz-counter" onclick="toggleHormuzPanel()" class="hdr-btn" title="Vessels in Strait of Hormuz">⬡ <span id="hormuz-count">--</span></button>
+    <button onclick="toggleCtrlPanel()" class="hdr-btn" id="ctrl-panel-btn" title="Controls">⊞ CTRL</button>
+    <button onclick="toggleStreamMode()" class="hdr-btn danger" id="stream-btn" title="Toggle stream mode">▶ STREAM</button>
+
+    <div class="hdr-divider"></div>
+
+    <button id="sound-toggle" onclick="toggleSound()" class="hdr-icon-btn" title="Toggle sound alerts">◎</button>
+    <button id="music-toggle" onclick="toggleMusic()" class="hdr-icon-btn" title="Toggle ambient music">♪</button>
+
+    <div class="hdr-divider"></div>
+    <div class="live-badge"><div class="live-dot" id="ws-dot"></div><span id="ws-status">LIVE</span></div>
     <div id="clock">--:--:--</div>
   </div>
 </header>
 
-<!-- Ambient music player - CC licensed synthwave tracks from Free Music Archive -->
-<audio id="ambient-music" loop preload="none" crossorigin="anonymous"></audio>
+<!-- Hormuz Detail Panel -->
+<div id="hormuz-panel" style="display:none;position:fixed;top:50px;left:50%;transform:translateX(-50%);width:360px;max-height:500px;background:var(--panel);border:1px solid var(--accent);border-radius:6px;z-index:2000;overflow:hidden;font-family:monospace;box-shadow:0 4px 20px rgba(0,200,255,0.15);">
+  <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+    <span style="color:var(--accent);font-size:11px;letter-spacing:2px;">⬡ HORMUZ STRAIT — VESSEL TRACKER</span>
+    <button onclick="toggleHormuzPanel()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:14px;">✕</button>
+  </div>
+  <div id="hormuz-summary" style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;color:var(--dim);">Loading vessel data...</div>
+  <div id="hormuz-vessel-list" style="overflow-y:auto;max-height:340px;padding:8px 0;">
+    <div style="padding:10px 14px;color:var(--dim);font-size:10px;">Waiting for AIS data...</div>
+  </div>
+</div>
+
+<!-- Control Panel - slides from right -->
+<div class="ctrl-panel" id="ctrl-panel">
+  <div class="ctrl-panel-tabs">
+    <button class="ctrl-tab active" onclick="switchCtrlTab('feeds')">◈ FEEDS</button>
+    <button class="ctrl-tab" onclick="switchCtrlTab('brief')">▣ BRIEF</button>
+  </div>
+  <div class="ctrl-content active" id="ctrl-feeds">
+    <!-- Feeds tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button onclick="ctrlFeedsTab('markets')" class="hdr-btn active" id="cf-markets">MARKETS</button>
+      <button onclick="ctrlFeedsTab('ships')" class="hdr-btn" id="cf-ships">SHIPS</button>
+      <button onclick="ctrlFeedsTab('flights')" class="hdr-btn" id="cf-flights">FLIGHTS</button>
+    </div>
+    <div id="ctrl-feeds-frame" style="height:calc(100vh - 160px);"></div>
+  </div>
+  <div class="ctrl-content" id="ctrl-brief">
+    <div id="ctrl-brief-content" style="font-family:monospace;font-size:10px;line-height:1.7;color:var(--text);max-height:calc(100vh - 120px);overflow-y:auto;"></div>
+  </div>
+</div>
 
 <!-- Alert toast -->
 <div class="alert-toast" id="alert-toast">🔴 BREAKING — CRITICAL EVENT DETECTED</div>
@@ -630,12 +667,12 @@
 
     <!-- Page 3: Asia & More -->
     <div class="market-page" id="mpage-2" style="display:none;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;height:100%;gap:4px;padding:4px;">
-      <!-- KOSPI -->
-      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22KRX%3AKOSPI%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C255%2C200%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C255%2C200%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
+      <!-- KOSPI - use INDEX:KOSPI -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22INDEX%3AKOSPI%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(0%2C255%2C200%2C1)%22%2C%22underLineColor%22%3A%22rgba(0%2C255%2C200%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
       <!-- Shanghai -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22SSE%3A000001%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C50%2C50%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C50%2C50%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
-      <!-- Natural Gas - use TVC -->
-      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3ANATURALGAS%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(100%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(100%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
+      <!-- Natural Gas - NYMEX:NG1! -->
+      <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22NYMEX%3ANG1!%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(100%2C200%2C255%2C1)%22%2C%22underLineColor%22%3A%22rgba(100%2C200%2C255%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
       <!-- Gold -->
       <iframe src="https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22TVC%3AGOLD%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22trendLineColor%22%3A%22rgba(255%2C215%2C0%2C1)%22%2C%22underLineColor%22%3A%22rgba(255%2C215%2C0%2C0.1)%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%7D" style="width:100%;height:100%;border:1px solid #1a2a3a;border-radius:4px;"></iframe>
     </div>
@@ -823,17 +860,6 @@ async function updateHormuzCount() {
     const data = await res.json();
     lastHormuzData = data;
     const el = document.getElementById('hormuz-count');
-    if (el) el.textContent = data.in_strait || 0;
-    if (hormuzPanelOpen) renderHormuzPanel(data);
-  } catch(e) {}
-}
-updateHormuzCount();
-setInterval(updateHormuzCount, 30000);
-async function updateHormuzCount() {
-  try {
-    const res = await fetch('/api/hormuz');
-    const data = await res.json();
-    const el = document.getElementById('hormuz-count');
     if (el) {
       el.textContent = data.in_strait || 0;
       const counter = document.getElementById('hormuz-counter');
@@ -841,10 +867,11 @@ async function updateHormuzCount() {
         counter.title = `Vessels in Strait of Hormuz\nToday's transits: ${data.today_transits || 0}\nTankers: ${(data.by_type || {}).Tanker || 0}\nCargo: ${(data.by_type || {}).Cargo || 0}`;
       }
     }
+    if (hormuzPanelOpen) renderHormuzPanel(data);
   } catch(e) {}
 }
 updateHormuzCount();
-setInterval(updateHormuzCount, 30000); // update every 30s
+setInterval(updateHormuzCount, 30000);
 
 // ── INTEL BRIEF ──────────────────────────────────────────────────────────────
 function closeBrief() { document.getElementById("brief-modal").style.display="none"; }
@@ -1416,6 +1443,61 @@ document.getElementById('tl-speed').addEventListener('click',()=>{tlSpeedIdx=(tl
 let soundEnabled = false;
 let audioCtx = null;
 
+// ── CONTROL PANEL ─────────────────────────────────────────────────────────────
+let ctrlPanelOpen = false;
+let currentCtrlFeedsTab = 'markets';
+
+const CTRL_FEEDS_URLS = {
+  markets: `<iframe src="https://s.tradingview.com/embed-widget/market-overview/?locale=en#${encodeURIComponent(JSON.stringify({colorTheme:'dark',dateRange:'1D',showChart:true,isTransparent:true,showSymbolLogo:false,showFloatingTooltip:false,width:'100%',height:'100%',tabs:[{title:'ENERGY',symbols:[{s:'TVC:USOIL'},{s:'NYMEX:NG1!'},{s:'TVC:GOLD'},{s:'TVC:SILVER'}]},{title:'INDICES',symbols:[{s:'FOREXCOM:SPXUSD'},{s:'INDEX:KOSPI'},{s:'SSE:000001'}]},{title:'FX',symbols:[{s:'FX:EURUSD'},{s:'FX:USDJPY'},{s:'FX:USDTRY'}]}]})}" style="width:100%;height:100%;border:none;"></iframe>`,
+  ships: `<iframe src="https://www.marinetraffic.com/en/ais/embed/zoom:7/centery:26.5/centerx:56.5/maptype:4/shownames:false/mmsi:0/shipid:0/fleet:/fleet_id:/vtypes:/showmenu:/remember:false" style="width:100%;height:100%;border:none;" allowfullscreen></iframe>`,
+  flights: `<iframe src="https://globe.adsbexchange.com/?mlat=27&mlon=55&zoom=6&hideSidebar&hideButtons" style="width:100%;height:100%;border:none;" allowfullscreen></iframe>`,
+};
+
+function toggleCtrlPanel() {
+  ctrlPanelOpen = !ctrlPanelOpen;
+  document.getElementById('ctrl-panel').classList.toggle('open', ctrlPanelOpen);
+  document.getElementById('ctrl-panel-btn').classList.toggle('active', ctrlPanelOpen);
+  if (ctrlPanelOpen) ctrlFeedsTab(currentCtrlFeedsTab);
+}
+
+function switchCtrlTab(tab) {
+  document.querySelectorAll('.ctrl-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ctrl-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(`ctrl-${tab}`).classList.add('active');
+  if (tab === 'brief') renderCtrlBrief();
+}
+
+function ctrlFeedsTab(tab) {
+  currentCtrlFeedsTab = tab;
+  ['markets','ships','flights'].forEach(t => {
+    const btn = document.getElementById(`cf-${t}`);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  document.getElementById('ctrl-feeds-frame').innerHTML = CTRL_FEEDS_URLS[tab];
+}
+
+function renderCtrlBrief() {
+  const el = document.getElementById('ctrl-brief-content');
+  if (!el) return;
+  const now = new Date();
+  const critical = allEvents.filter(e => e.type === 'critical');
+  const warning = allEvents.filter(e => e.type === 'warning');
+  const byCountry = {};
+  critical.forEach(e => { if(e.location) byCountry[e.location] = (byCountry[e.location]||0)+1; });
+  const top = Object.entries(byCountry).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  el.innerHTML = `
+    <div style="color:var(--crit);letter-spacing:2px;margin-bottom:10px;">◈ SENTINEL ZERO // INTEL BRIEF</div>
+    <div style="color:var(--dim);margin-bottom:12px;">${now.toUTCString()}</div>
+    <div style="color:var(--accent);margin-bottom:6px;">SITUATION OVERVIEW</div>
+    <div style="margin-bottom:12px;">${allEvents.length} events // ${critical.length} CRITICAL // ${warning.length} WARNING</div>
+    <div style="color:var(--accent);margin-bottom:6px;">TOP FLASHPOINTS</div>
+    ${top.map(([c,n])=>`<div style="margin-bottom:4px;">▸ ${c.toUpperCase()} — ${n} critical event${n>1?'s':''}</div>`).join('')}
+    <div style="color:var(--accent);margin-top:12px;margin-bottom:6px;">RECENT CRITICAL</div>
+    ${critical.slice(0,5).map(e=>`<div style="margin-bottom:8px;border-left:2px solid var(--crit);padding-left:8px;color:var(--dim);">${e.message}</div>`).join('')}
+  `;
+}
+
 // ── STREAM MODE ───────────────────────────────────────────────────────────────
 let streamMode = false;
 let streamTimer = null;
@@ -1617,11 +1699,8 @@ function streamCriticalInterrupt(event) {
 let musicPlaying = false;
 let musicTrackIdx = 0;
 
-// CC-licensed dark synthwave/ambient tracks from Free Music Archive
 const MUSIC_TRACKS = [
-  'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/WFMU/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3',
-  'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Kai_Engel/Satin/Kai_Engel_-_09_-_Sentinel.mp3',
-  'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/WFMU/Broke_For_Free/Slam_Funk_EP/Broke_For_Free_-_01_-_Something_Elated.mp3',
+  'https://raw.githubusercontent.com/pedro-intel/intel-system/main/usefulpix-retro-synthwave-background-soundtrack-341853.mp3',
 ];
 
 function toggleMusic() {
