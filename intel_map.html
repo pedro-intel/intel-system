@@ -475,15 +475,16 @@
   .market-page { display: none; height: 100%; overflow: hidden; }
   .market-page.active { display: grid; }
   .feeds-panel {
-    position: absolute;
+    position: fixed;
     top: 50px;
     left: 0;
     width: 100%;
-    height: calc(100% - 50px);
+    height: calc(100% - 78px); /* 50px header + 28px ticker */
     background: var(--bg);
     z-index: 1500;
     display: none;
     flex-direction: column;
+    border-top: 1px solid var(--border);
   }
   .feeds-panel.open { display: flex; }
   .feeds-header {
@@ -509,7 +510,6 @@
   }
   .feeds-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(0,200,255,.08); }
   .feeds-close {
-    margin-left: auto;
     font-family: 'Share Tech Mono', monospace;
     font-size: 11px;
     background: transparent;
@@ -628,9 +628,12 @@
 <div class="feeds-panel" id="feeds-panel">
   <div class="feeds-header">
     <button class="feeds-tab active" onclick="feedsTab('markets')">📈 MARKETS</button>
-    <button class="feeds-tab" onclick="feedsTab('ships')">🚢 HORMUZ SHIPS</button>
+    <button class="feeds-tab" onclick="feedsTab('ships')">🚢 HORMUZ VESSELS</button>
     <button class="feeds-tab" onclick="feedsTab('flights')">✈️ MIL FLIGHTS</button>
-    <button class="feeds-close" onclick="toggleFeeds()">✕ CLOSE</button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:9px;color:var(--dim);letter-spacing:1px;">◈ SENTINEL ZERO // INTEL FEEDS</span>
+      <button class="feeds-close" onclick="toggleFeeds()">✕ CLOSE</button>
+    </div>
   </div>
 
   <!-- Markets tab -->
@@ -1711,27 +1714,19 @@ function toggleMusic() {
   if (musicPlaying) {
     audio.pause();
     musicPlaying = false;
-    btn.innerHTML = '♪ MUSIC';
+    btn.innerHTML = '♪';
+    btn.title = 'Play music';
     btn.classList.remove('music-on');
   } else {
-    audio.volume = 0.12;
+    audio.volume = 0.25;
     audio.src = MUSIC_TRACKS[musicTrackIdx % MUSIC_TRACKS.length];
     audio.play().then(() => {
       musicPlaying = true;
-      btn.innerHTML = '♪ PLAYING';
+      btn.innerHTML = '♫';
+      btn.title = 'Stop music';
       btn.classList.add('music-on');
-    }).catch(e => {
-      // Try next track on error
-      musicTrackIdx++;
-      audio.src = MUSIC_TRACKS[musicTrackIdx % MUSIC_TRACKS.length];
-      audio.play().then(() => {
-        musicPlaying = true;
-        btn.innerHTML = '♪ PLAYING';
-        btn.style.color = '#ff4400';
-        btn.style.borderColor = '#ff4400';
-      }).catch(() => {
-        btn.innerHTML = '♪ MUSIC';
-      });
+    }).catch(() => {
+      btn.innerHTML = '♪';
     });
     audio.onended = () => {
       musicTrackIdx++;
